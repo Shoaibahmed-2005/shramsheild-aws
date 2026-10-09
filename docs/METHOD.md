@@ -52,6 +52,12 @@ Liljegren. If temperature or humidity is missing the hour has no WBGT and no adv
 it is reported as `UNKNOWN` rather than guessed. In the backtest run none of the four
 archive responses contained a null value, so no hour used the fallback.
 
+One further guard: at exactly 0% relative humidity the Liljegren solver takes the logarithm
+of a zero vapour pressure and returns NaN. We never pass that on as a number. Such an hour
+falls back to the simple formula, and if that also fails to produce a number the hour is
+`UNKNOWN`. Open-Meteo does not report 0% humidity in practice, but a plan must never carry
+an invented or non-numeric value.
+
 ## 4. Screening limits
 
 WBGT limits in degrees Celsius. Source: ACGIH 2026 TLV Table 1 as summarised by CCOHS. A
@@ -153,6 +159,8 @@ evidence about heat illness, and ShramShield is not a clinical or certified inst
 - People differ. Age, fitness, medication, illness, pregnancy, hydration and acclimatization
   state all change individual risk, and the screening limits are not a medical standard that
   fits everyone.
+- The Hindi message text is machine-drafted and has **not** been reviewed by a native Hindi
+  speaker. `docs/HINDI_REVIEW.md` holds the text awaiting review and is marked pending.
 - In 6 of the 8736 hours examined, all with wind below the 0.62 m/s floor that the Liljegren
   method applies, WBGT exceeded air temperature by more than 3 C. This is expected for a
   sunlit globe in near-still air rather than an error, and those hours are reported

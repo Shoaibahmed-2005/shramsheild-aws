@@ -6,6 +6,7 @@ needs review by a Hindi speaker (task P1.3).
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 __all__ = [
@@ -14,6 +15,8 @@ __all__ = [
     "EN_LEVEL_NAMES",
     "HI_LEVEL_NAMES",
     "build_messages",
+    "voice_text",
+    "VOICE_MAX_CHARS",
 ]
 
 EN_LEVEL_NAMES: dict[str, str] = {
@@ -185,3 +188,74 @@ def build_messages(
     if window["level"] == "STOP":
         return {"en": EN_STOP.format(**en_fields), "hi": HI_STOP.format(**hi_fields)}
     return {"en": EN_WINDOW.format(**en_fields), "hi": HI_WINDOW.format(**hi_fields)}
+
+
+VOICE_MAX_CHARS = 600
+
+# The hydration sentence is dropped first when a voice message is too long.
+# It is NOT always the last sentence: in the WINDOW templates the last sentence
+# is the "stop work if you feel unwell" warning, which must never be cut.
+_HYDRATION_MARKERS = ("240 mL of cool water", "गिलास ठंडा पानी")
+
+# Characters that would be read out or mangled by a text-to-speech voice.
+_MARKDOWN_CHARS = "*_`#[]~|<>"
+
+_EMOJI = re.compile(
+    "[\U0001F300-\U0001FAFF\U0001F000-\U0001F2FF☀-➿️‍←-⇿]"
+)
+
+# A temperature unit written as a bare capital C after a number.
+_UNIT_C = re.compile(r"(\d)\s*C\b")
+
+_SENTENCE_SPLIT = re.compile(r"(?<=[।.])\s*")
+
+
+def _strip_for_speech(text: str) -> str:
+    text = _EMOJI.sub("", text)
+    for char in _MARKDOWN_CHARS:
+        text = text.replace(char, "")
+    return re.sub(r"[ \t]+", " ", text).strip()
+
+
+def _expand_unit(text: str, lang: str) -> str:
+    """Remove the bare "C" unit so a voice never reads out a stray letter.
+
+    English gets the spoken word. Hindi templates carry no unit at all, so the
+    unit is only dropped there: inventing a Hindi word is not ours to do, the
+    contract text is frozen and any change must come from the human (P1.3 step 9).
+    """
+    if lang == "en":
+        return _UNIT_C.sub(r"\1 degrees", text)
+    return _UNIT_C.sub(r"\1", text)
+
+
+def _drop_hydration_sentence(text: str) -> str:
+    sentences = [part for part in _SENTENCE_SPLIT.split(text) if part.strip()]
+    kept = [
+        sentence
+        for sentence in sentences
+        if not any(marker in sentence for marker in _HYDRATION_MARKERS)
+    ]
+    if len(kept) == len(sentences):
+        return text
+    return " ".join(kept)
+
+
+def voice_text(plan: dict[str, Any], lang: str) -> str:
+    """The plan message prepared for Amazon Polly.
+
+    Only removals and unit normalisation: no emoji, no markdown, no bare "C"
+    unit. If the result is longer than VOICE_MAX_CHARS the hydration sentence
+    is dropped.
+    """
+    if lang not in ("en", "hi"):
+        raise ValueError(f"unsupported language {lang!r}")
+    try:
+        message = plan["messages"][lang]
+    except (KeyError, TypeError) as exc:
+        raise ValueError(f"plan has no {lang} message") from exc
+
+    text = _expand_unit(_strip_for_speech(message), lang)
+    if len(text) > VOICE_MAX_CHARS:
+        text = _drop_hydration_sentence(text)
+    return text
