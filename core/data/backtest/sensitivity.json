@@ -1,0 +1,69 @@
+{
+  "_note": "Robustness check, not part of the shared contract. Same data and period as backtest.json, different work profile.",
+  "generated_at": "2026-10-09T18:45:03Z",
+  "period": {
+    "start": "2024-04-01",
+    "end": "2024-06-30"
+  },
+  "baseline_threshold_c": 40,
+  "variants": [
+    {
+      "workload": "heavy",
+      "acclimatized": true,
+      "dangerous_hours": 2618,
+      "missed_at_40c": 2332,
+      "missed_pct_at_40c": 89.1,
+      "sites": [
+        {
+          "site_id": "chn-01",
+          "dangerous_hours": 838,
+          "missed_pct_at_40c": 99.3
+        },
+        {
+          "site_id": "del-01",
+          "dangerous_hours": 431,
+          "missed_pct_at_40c": 51.0
+        },
+        {
+          "site_id": "kol-01",
+          "dangerous_hours": 855,
+          "missed_pct_at_40c": 94.4
+        },
+        {
+          "site_id": "hyd-01",
+          "dangerous_hours": 494,
+          "missed_pct_at_40c": 95.7
+        }
+      ]
+    },
+    {
+      "workload": "moderate",
+      "acclimatized": false,
+      "dangerous_hours": 3350,
+      "missed_at_40c": 3009,
+      "missed_pct_at_40c": 89.8,
+      "sites": [
+        {
+          "site_id": "chn-01",
+          "dangerous_hours": 973,
+          "missed_pct_at_40c": 99.4
+        },
+        {
+          "site_id": "del-01",
+          "dangerous_hours": 659,
+          "missed_pct_at_40c": 59.9
+        },
+        {
+          "site_id": "kol-01",
+          "dangerous_hours": 962,
+          "missed_pct_at_40c": 95.0
+        },
+        {
+          "site_id": "hyd-01",
+          "dangerous_hours": 756,
+          "missed_pct_at_40c": 97.0
+        }
+      ]
+    }
+  ]
+}
