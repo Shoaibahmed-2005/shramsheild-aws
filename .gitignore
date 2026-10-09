@@ -1,0 +1,31 @@
+# Python
+.venv/
+venv/
+core/.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+dist/
+
+# AWS SAM
+.aws-sam/
+backend/build/
+backend/samconfig.toml
+backend/src/shramshield_core/
+
+# Secrets and local env
+frontend/.env.local
+frontend/.env.*.local
+.env
+*.env
+
+# OS and editors
+.DS_Store
+.idea/
+.vscode/
+
+# Local reference copy, not part of the repository
+/ShramShield_Build_Plan.pdf

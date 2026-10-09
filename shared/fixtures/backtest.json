@@ -1,0 +1,260 @@
+{
+  "_fixture": true,
+  "generated_at": "2026-10-09T10:00:00Z",
+  "period": {
+    "start": "2024-04-01",
+    "end": "2024-06-30"
+  },
+  "profile": {
+    "workload": "moderate",
+    "acclimatized": true,
+    "work_start_hour": 7,
+    "work_end_hour": 18
+  },
+  "dangerous_levels": [
+    "RED",
+    "STOP"
+  ],
+  "baseline_thresholds_c": [
+    37,
+    40,
+    42
+  ],
+  "sites": [
+    {
+      "site_id": "chn-01",
+      "name": "Chennai",
+      "lat": 13.085,
+      "lon": 80.2101,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 420,
+        "YELLOW": 180,
+        "ORANGE": 160,
+        "RED": 150,
+        "STOP": 91
+      },
+      "dangerous_hours": 241,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 60,
+          "caught": 55,
+          "missed": 186,
+          "missed_pct": 77.2,
+          "false_alarm_hours": 2
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 12,
+          "caught": 11,
+          "missed": 230,
+          "missed_pct": 95.4,
+          "false_alarm_hours": 0
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 2,
+          "caught": 2,
+          "missed": 239,
+          "missed_pct": 99.2,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-05-18T10:00",
+        "air_temp_c": 33.1,
+        "rh_pct": 71,
+        "wbgt_c": 30.6,
+        "level": "RED"
+      }
+    },
+    {
+      "site_id": "del-01",
+      "name": "Delhi",
+      "lat": 28.6139,
+      "lon": 77.209,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 300,
+        "YELLOW": 150,
+        "ORANGE": 170,
+        "RED": 230,
+        "STOP": 151
+      },
+      "dangerous_hours": 381,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 210,
+          "caught": 190,
+          "missed": 191,
+          "missed_pct": 50.1,
+          "false_alarm_hours": 6
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 95,
+          "caught": 92,
+          "missed": 289,
+          "missed_pct": 75.9,
+          "false_alarm_hours": 1
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 40,
+          "caught": 39,
+          "missed": 342,
+          "missed_pct": 89.8,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-06-12T16:00",
+        "air_temp_c": 38.4,
+        "rh_pct": 44,
+        "wbgt_c": 30.9,
+        "level": "RED"
+      }
+    },
+    {
+      "site_id": "kol-01",
+      "name": "Kolkata",
+      "lat": 22.5726,
+      "lon": 88.3639,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 380,
+        "YELLOW": 200,
+        "ORANGE": 180,
+        "RED": 160,
+        "STOP": 81
+      },
+      "dangerous_hours": 241,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 70,
+          "caught": 62,
+          "missed": 179,
+          "missed_pct": 74.3,
+          "false_alarm_hours": 3
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 15,
+          "caught": 14,
+          "missed": 227,
+          "missed_pct": 94.2,
+          "false_alarm_hours": 0
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 1,
+          "caught": 1,
+          "missed": 240,
+          "missed_pct": 99.6,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-05-02T11:00",
+        "air_temp_c": 33.8,
+        "rh_pct": 73,
+        "wbgt_c": 31.1,
+        "level": "RED"
+      }
+    },
+    {
+      "site_id": "hyd-01",
+      "name": "Hyderabad",
+      "lat": 17.385,
+      "lon": 78.4867,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 520,
+        "YELLOW": 190,
+        "ORANGE": 140,
+        "RED": 110,
+        "STOP": 41
+      },
+      "dangerous_hours": 151,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 130,
+          "caught": 95,
+          "missed": 56,
+          "missed_pct": 37.1,
+          "false_alarm_hours": 12
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 45,
+          "caught": 40,
+          "missed": 111,
+          "missed_pct": 73.5,
+          "false_alarm_hours": 2
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 8,
+          "caught": 8,
+          "missed": 143,
+          "missed_pct": 94.7,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-05-24T13:00",
+        "air_temp_c": 35.6,
+        "rh_pct": 48,
+        "wbgt_c": 30.4,
+        "level": "RED"
+      }
+    }
+  ],
+  "totals": {
+    "dangerous_hours": 1014,
+    "by_threshold": [
+      {
+        "threshold_c": 37,
+        "alert_hours": 470,
+        "caught": 402,
+        "missed": 612,
+        "missed_pct": 60.4,
+        "false_alarm_hours": 23
+      },
+      {
+        "threshold_c": 40,
+        "alert_hours": 167,
+        "caught": 157,
+        "missed": 857,
+        "missed_pct": 84.5,
+        "false_alarm_hours": 3
+      },
+      {
+        "threshold_c": 42,
+        "alert_hours": 51,
+        "caught": 50,
+        "missed": 964,
+        "missed_pct": 95.1,
+        "false_alarm_hours": 0
+      }
+    ]
+  },
+  "caveats": [
+    "Compares two methods on the same historical data; it is not validated against heat illness cases.",
+    "Uses historical reanalysis data, not archived forecasts.",
+    "Placeholder counts; replaced by real computed numbers in task P1.2."
+  ],
+  "sources": {
+    "weather": "fixture",
+    "wbgt_method": "liljegren",
+    "thermofeel": "2.3.0"
+  }
+}

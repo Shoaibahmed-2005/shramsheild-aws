@@ -1,0 +1,40 @@
+{
+  "_fixture": true,
+  "run_id": "kol-01_20261009T004002",
+  "site_id": "kol-01",
+  "plan_id": "kol-01_2026-10-09",
+  "status": "ACKNOWLEDGED",
+  "active_stage": null,
+  "ack_deadline": "2026-10-09T00:55:02Z",
+  "voice_url": null,
+  "acked_by": "Supervisor",
+  "acked_via": "telegram",
+  "created_at": "2026-10-09T00:40:02Z",
+  "events": [
+    {
+      "ts": "2026-10-09T00:40:03Z",
+      "step": "plan_built",
+      "detail": "peak WBGT 30.4 at 13:00"
+    },
+    {
+      "ts": "2026-10-09T00:40:11Z",
+      "step": "voice_ready",
+      "detail": "Hindi voice message ready"
+    },
+    {
+      "ts": "2026-10-09T00:40:14Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Supervisor"
+    },
+    {
+      "ts": "2026-10-09T00:40:14Z",
+      "step": "notified_primary",
+      "detail": "waiting for acknowledgement"
+    },
+    {
+      "ts": "2026-10-09T00:42:38Z",
+      "step": "acknowledged",
+      "detail": "Supervisor acknowledged on telegram"
+    }
+  ]
+}

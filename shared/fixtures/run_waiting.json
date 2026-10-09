@@ -1,0 +1,35 @@
+{
+  "_fixture": true,
+  "run_id": "chn-01_20261009T003012",
+  "site_id": "chn-01",
+  "plan_id": "chn-01_2026-10-09",
+  "status": "WAITING_ACK",
+  "active_stage": "primary",
+  "ack_deadline": "2026-10-09T00:45:12Z",
+  "voice_url": null,
+  "acked_by": null,
+  "acked_via": null,
+  "created_at": "2026-10-09T00:30:12Z",
+  "events": [
+    {
+      "ts": "2026-10-09T00:30:13Z",
+      "step": "plan_built",
+      "detail": "peak WBGT 32.0 at 14:00"
+    },
+    {
+      "ts": "2026-10-09T00:30:21Z",
+      "step": "voice_ready",
+      "detail": "Hindi voice message ready"
+    },
+    {
+      "ts": "2026-10-09T00:30:24Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Supervisor"
+    },
+    {
+      "ts": "2026-10-09T00:30:24Z",
+      "step": "notified_primary",
+      "detail": "waiting for acknowledgement"
+    }
+  ]
+}

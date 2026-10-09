@@ -1,0 +1,84 @@
+{
+  "sites": [
+    {
+      "site_id": "chn-01",
+      "name": "Chennai demo site",
+      "lat": 13.085,
+      "lon": 80.2101,
+      "workload": "moderate",
+      "acclimatized": true,
+      "work_start_hour": 7,
+      "work_end_hour": 18,
+      "language": "hi",
+      "supervisor": {
+        "name": "Supervisor",
+        "telegram_chat_id": null
+      },
+      "backup": {
+        "name": "Backup",
+        "telegram_chat_id": null
+      },
+      "ack_timeout_seconds": 900
+    },
+    {
+      "site_id": "del-01",
+      "name": "Delhi demo site",
+      "lat": 28.6139,
+      "lon": 77.209,
+      "workload": "heavy",
+      "acclimatized": true,
+      "work_start_hour": 7,
+      "work_end_hour": 18,
+      "language": "hi",
+      "supervisor": {
+        "name": "Supervisor",
+        "telegram_chat_id": null
+      },
+      "backup": {
+        "name": "Backup",
+        "telegram_chat_id": null
+      },
+      "ack_timeout_seconds": 600
+    },
+    {
+      "site_id": "kol-01",
+      "name": "Kolkata demo site",
+      "lat": 22.5726,
+      "lon": 88.3639,
+      "workload": "moderate",
+      "acclimatized": true,
+      "work_start_hour": 7,
+      "work_end_hour": 18,
+      "language": "hi",
+      "supervisor": {
+        "name": "Supervisor",
+        "telegram_chat_id": null
+      },
+      "backup": {
+        "name": "Backup",
+        "telegram_chat_id": null
+      },
+      "ack_timeout_seconds": 900
+    },
+    {
+      "site_id": "hyd-01",
+      "name": "Hyderabad demo site",
+      "lat": 17.385,
+      "lon": 78.4867,
+      "workload": "light",
+      "acclimatized": true,
+      "work_start_hour": 7,
+      "work_end_hour": 18,
+      "language": "hi",
+      "supervisor": {
+        "name": "Supervisor",
+        "telegram_chat_id": null
+      },
+      "backup": {
+        "name": "Backup",
+        "telegram_chat_id": null
+      },
+      "ack_timeout_seconds": 900
+    }
+  ]
+}

@@ -1,0 +1,50 @@
+{
+  "_fixture": true,
+  "run_id": "del-01_20261009T003515",
+  "site_id": "del-01",
+  "plan_id": "del-01_2026-10-09",
+  "status": "ESCALATED",
+  "active_stage": "backup",
+  "ack_deadline": "2026-10-09T00:55:15Z",
+  "voice_url": null,
+  "acked_by": null,
+  "acked_via": null,
+  "created_at": "2026-10-09T00:35:15Z",
+  "events": [
+    {
+      "ts": "2026-10-09T00:35:16Z",
+      "step": "plan_built",
+      "detail": "peak WBGT 31.8 at 15:00"
+    },
+    {
+      "ts": "2026-10-09T00:35:23Z",
+      "step": "voice_ready",
+      "detail": "Hindi voice message ready"
+    },
+    {
+      "ts": "2026-10-09T00:35:26Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Supervisor"
+    },
+    {
+      "ts": "2026-10-09T00:35:26Z",
+      "step": "notified_primary",
+      "detail": "waiting for acknowledgement"
+    },
+    {
+      "ts": "2026-10-09T00:45:26Z",
+      "step": "escalated",
+      "detail": "no acknowledgement after 600 seconds"
+    },
+    {
+      "ts": "2026-10-09T00:45:29Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Backup"
+    },
+    {
+      "ts": "2026-10-09T00:45:29Z",
+      "step": "notified_backup",
+      "detail": "waiting for acknowledgement"
+    }
+  ]
+}

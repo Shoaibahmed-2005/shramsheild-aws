@@ -1,0 +1,55 @@
+{
+  "_fixture": true,
+  "run_id": "hyd-01_20261009T004530",
+  "site_id": "hyd-01",
+  "plan_id": "hyd-01_2026-10-09",
+  "status": "UNACKNOWLEDGED",
+  "active_stage": null,
+  "ack_deadline": "2026-10-09T01:15:30Z",
+  "voice_url": null,
+  "acked_by": null,
+  "acked_via": null,
+  "created_at": "2026-10-09T00:45:30Z",
+  "events": [
+    {
+      "ts": "2026-10-09T00:45:31Z",
+      "step": "plan_built",
+      "detail": "peak WBGT 29.6 at 14:00"
+    },
+    {
+      "ts": "2026-10-09T00:45:39Z",
+      "step": "voice_ready",
+      "detail": "Hindi voice message ready"
+    },
+    {
+      "ts": "2026-10-09T00:45:42Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Supervisor"
+    },
+    {
+      "ts": "2026-10-09T00:45:42Z",
+      "step": "notified_primary",
+      "detail": "waiting for acknowledgement"
+    },
+    {
+      "ts": "2026-10-09T01:00:42Z",
+      "step": "escalated",
+      "detail": "no acknowledgement after 900 seconds"
+    },
+    {
+      "ts": "2026-10-09T01:00:45Z",
+      "step": "telegram_sent",
+      "detail": "plan sent to Backup"
+    },
+    {
+      "ts": "2026-10-09T01:00:45Z",
+      "step": "notified_backup",
+      "detail": "waiting for acknowledgement"
+    },
+    {
+      "ts": "2026-10-09T01:15:45Z",
+      "step": "unacknowledged",
+      "detail": "nobody acknowledged the plan"
+    }
+  ]
+}
