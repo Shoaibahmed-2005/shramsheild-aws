@@ -158,8 +158,9 @@ def update_run_stage(
     stage: str,
     ack_deadline: str,
     voice_url: Optional[str] = None,
+    voice_key: Optional[str] = None,
 ) -> bool:
-    """Set stage metadata (active_stage, ack_deadline, voice_url) conditionally."""
+    """Set stage metadata (active_stage, ack_deadline, voice_url/key) conditionally."""
     run = get_run(table, run_id)
     if not run or run.get("status") in FINAL_STATUSES:
         return False
@@ -169,6 +170,10 @@ def update_run_stage(
     run["ack_deadline"] = ack_deadline
     if voice_url is not None:
         run["voice_url"] = voice_url
+    # The S3 object key outlives the presigned URL, which expires after an hour.
+    # Storing it lets the API sign a fresh URL every time a run is read.
+    if voice_key is not None:
+        run["voice_key"] = voice_key
 
     try:
         table.update_item(

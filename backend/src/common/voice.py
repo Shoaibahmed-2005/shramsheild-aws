@@ -22,6 +22,11 @@ def _get_s3_client() -> boto3.client:
     return boto3.client("s3", region_name=stack_region, config=cfg)
 
 
+def object_key(run_id: str, lang: str = "hi") -> str:
+    """S3 key of a run's voice file. Single source of truth for the layout."""
+    return f"voice/{run_id}_{lang}.mp3"
+
+
 def presign_voice_url(key: str, expires_in: int = 3600) -> str:
     """Generate a presigned HTTPS GET URL for a voice object in S3."""
     bucket = os.environ.get("VOICE_BUCKET")
@@ -65,7 +70,7 @@ def synthesize(text: str, run_id: str, lang: str = "hi") -> str:
         raise RuntimeError("Polly did not return an AudioStream")
 
     audio_bytes = audio_stream.read()
-    s3_key = f"voice/{run_id}_{lang}.mp3"
+    s3_key = object_key(run_id, lang)
 
     s3 = _get_s3_client()
     s3.put_object(

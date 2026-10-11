@@ -90,21 +90,24 @@ The headline barely moves across profiles, so "about 89% missed at 40 C" is safe
 | Claim | Value | How to reproduce (exact command) | Source |
 |---|---|---|---|
 | Core tests passing | 194 | `cd core && .venv/Scripts/python -m pytest -q` | `core/tests/` |
+| Backend tests passing | 29 | `cd backend && .venv/Scripts/python -m pytest -q` | `backend/tests/` |
+| Frontend tests passing | 35 | `cd frontend && npm run test` | `frontend/src/__tests__/` |
+| **Total tests passing** | **258** | the three commands above | |
 | Core fixtures valid | 7 of 7 OK | `cd core && .venv/Scripts/python scripts/validate_fixtures.py` | `shared/fixtures/` |
 | Live sites verified today | 4 of 4 OK | `cd core && .venv/Scripts/python scripts/verify_live.py` | live Open-Meteo |
 
-Backend tests are **not** counted here. P2's handover document reports 21 passing in
-`backend/tests/`, but that suite needs `boto3` and `moto`, which are not installed in the core
-virtual environment, so P1 could not run it in this task. If the team wants to say a combined
-test count in public, P2 must run it and add the number to this file. Until then, say
-"194 core tests".
+All three suites were run on 11 October 2026. The backend suite needs `boto3` and `moto`
+in `backend/.venv` (`pip install -r backend/requirements-dev.txt`); it was 21 tests and grew to
+29 when the voice-URL regression tests were added. **"258 tests" is safe to say in public**, as
+is "194 core tests" if you want the narrower figure.
 
 ## AWS services
 
 Counted by reading `backend/template.yaml` (P2's file, read only).
 Command: `grep -n -E "Type: AWS::|polly:|Type: ScheduleV2|^Transform" backend/template.yaml`
 
-**9 AWS services are evidenced in the template:**
+**9 services are declared in `template.yaml`** (CloudWatch Logs is created implicitly by
+Lambda rather than declared, which is why the live count in `AWS_EVIDENCE.md` is 10):
 
 | # | Service | What evidences it in template.yaml |
 |---|---|---|
@@ -118,12 +121,15 @@ Command: `grep -n -E "Type: AWS::|polly:|Type: ScheduleV2|^Transform" backend/te
 | 8 | AWS CloudFormation | `Transform: AWS::Serverless-2016-10-31` (the stack is deployed by SAM) |
 | 9 | AWS IAM | 5 `Policies:` blocks, from which SAM generates execution roles |
 
-**Open point for the human:** P2's handover document says "12 AWS services". P1 can evidence
-only these 9 from `template.yaml`, and cannot say which the other three are: Amplify Hosting
-is added in P2.4 and CloudWatch Logs is created implicitly by Lambda, but neither appears in
-the template at this commit, and the remaining one is unknown to P1. Say **9** in public, or
-wait until P2 lists all twelve with evidence in `docs/AWS_EVIDENCE.md` and then update this
-row. Do not say 12 on P1's authority.
+**Resolved.** `docs/AWS_EVIDENCE.md` now records the live stack from read-only CLI output.
+**Say 10 services, 8 of them evidenced as deployed.** The eight proven from
+`describe-stack-resources`, `describe-stacks` and `describe-log-groups` are Lambda, API Gateway
+HTTP API, DynamoDB, Step Functions, S3, IAM, CloudWatch Logs and CloudFormation/SAM. Amazon
+Polly and EventBridge Scheduler are declared in `template.yaml` but create no CloudFormation
+resource and have not fired (the schedule is `DISABLED`), so they are listed separately.
+
+The "12 services" figure in P2's handover document is **not** supported: Amplify Hosting is not
+deployed, and nothing evidences a twelfth. Do not say 12.
 
 ## Hindi text review status
 

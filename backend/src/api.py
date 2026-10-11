@@ -17,10 +17,10 @@ import hmac
 
 try:
     from common.http import error, json_response, require_demo_key
-    from common import db, runs, runs_start, telegram
+    from common import db, runs, runs_start, telegram, voice
 except ImportError:
     from src.common.http import error, json_response, require_demo_key
-    from src.common import db, runs, runs_start, telegram
+    from src.common import db, runs, runs_start, telegram, voice
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -292,6 +292,27 @@ def handle_start_site_run(event: Dict[str, Any], site_id: str) -> Dict[str, Any]
     return result
 
 
+def _with_fresh_voice_url(run: Dict[str, Any]) -> Dict[str, Any]:
+    """Sign a new voice URL every time a run is read.
+
+    A presigned S3 URL lasts one hour, and Lambda signs with temporary
+    credentials, so the URL minted when the supervisor was notified is dead by
+    the time anyone reopens the run. The S3 object key is stored on the run
+    instead, and signed again here. Runs created before voice_key existed keep
+    whatever URL they stored, so nothing breaks for them.
+    """
+    key = run.get("voice_key")
+    if not key:
+        return run
+    try:
+        fresh = dict(run)
+        fresh["voice_url"] = voice.presign_voice_url(key)
+        return fresh
+    except Exception as exc:  # never fail a read because signing failed
+        logger.warning("Could not re-sign voice url: %s", type(exc).__name__)
+        return run
+
+
 def handle_get_latest_site_run(event: Dict[str, Any], site_id: str) -> Dict[str, Any]:
     """GET /sites/{site_id}/runs/latest - Fetch latest run for a site."""
     if not _SITE_ID_RE.match(site_id):
@@ -306,7 +327,7 @@ def handle_get_latest_site_run(event: Dict[str, Any], site_id: str) -> Dict[str,
     if not latest_run:
         return error("not_found", f"No runs found for site '{site_id}'")
 
-    return json_response(200, latest_run)
+    return json_response(200, _with_fresh_voice_url(latest_run))
 
 
 def handle_get_run(event: Dict[str, Any], run_id: str) -> Dict[str, Any]:
@@ -316,7 +337,7 @@ def handle_get_run(event: Dict[str, Any], run_id: str) -> Dict[str, Any]:
     if not run:
         return error("not_found", f"Run '{run_id}' not found")
 
-    return json_response(200, run)
+    return json_response(200, _with_fresh_voice_url(run))
 
 
 def handle_ack(event: Dict[str, Any]) -> Dict[str, Any]:

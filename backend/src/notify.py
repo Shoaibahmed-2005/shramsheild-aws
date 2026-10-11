@@ -122,20 +122,30 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 
     # e. Voice synthesis
     voice_url = run.get("voice_url")
-    if stage == "primary" and not voice_url:
+    voice_key = run.get("voice_key")
+    if stage == "primary" and not voice_key and not voice_url:
         try:
             voice_url = voice.synthesize(msg_body, run_id, lang=lang)
+            voice_key = voice.object_key(run_id, lang)
             runs.add_event(table, run_id, "voice_ready", "Hindi voice message ready" if lang == "hi" else "Voice message ready")
         except Exception as exc:
             logger.error("Polly synthesis error: %s", exc)
             runs.add_event(table, run_id, "error", type(exc).__name__)
             voice_url = None
-    elif stage == "backup" and not voice_url:
+    elif stage == "backup" and not voice_key and not voice_url:
         try:
             voice_url = voice.synthesize(msg_body, run_id, lang=lang)
+            voice_key = voice.object_key(run_id, lang)
         except Exception as exc:
             logger.warning("Polly backup synthesis skipped: %s", exc)
             voice_url = None
+    elif voice_key:
+        # The audio already exists. Sign it again so the backup contact gets a
+        # link that is valid now, not one minted when the primary was notified.
+        try:
+            voice_url = voice.presign_voice_url(voice_key)
+        except Exception as exc:
+            logger.warning("Could not re-sign voice url: %s", type(exc).__name__)
 
     # f. Send Telegram message with inline acknowledge button
     reply_markup = {
@@ -179,7 +189,10 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
 
     # Set status: primary -> WAITING_ACK (ESCALATED is set by record.py when moving to backup)
     target_status = "WAITING_ACK" if stage == "primary" else "ESCALATED"
-    runs.update_run_stage(table, run_id, target_status, stage, deadline_ts, voice_url=voice_url)
+    runs.update_run_stage(
+        table, run_id, target_status, stage, deadline_ts,
+        voice_url=voice_url, voice_key=voice_key,
+    )
 
     logger.info("Stage %s notification completed for run %s. Waiting for acknowledgement.", stage, run_id)
     # Return WITHOUT calling send_task_success so Step Functions waits for task token

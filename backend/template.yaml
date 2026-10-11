@@ -134,6 +134,11 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DataTable
+        # Read-only on the voice bucket. The API never writes audio; it only
+        # signs a fresh GET URL for an existing object each time a run is read,
+        # and a presigned URL is rejected unless its signer may read the object.
+        - S3ReadPolicy:
+            BucketName: !Ref VoiceBucket
         - Statement:
             - Effect: Allow
               Action:
