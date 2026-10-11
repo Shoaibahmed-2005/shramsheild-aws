@@ -267,7 +267,10 @@ def test_health_check():
     body = json.loads(resp["body"])
     assert body["ok"] is True
     assert body["service"] == "shramshield"
-    assert body["version"] == "0.1.0"
+    # /health reports the bundled core version, so a deploy is verifiable from outside.
+    from shramshield_core import __version__ as core_version
+
+    assert body["version"] == core_version
     assert "thermofeel" in body
 
 

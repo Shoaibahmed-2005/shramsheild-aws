@@ -134,13 +134,23 @@ router = Router()
 # ---------------------------------------------------------------------------
 
 
+def _core_version() -> str:
+    """Version of the bundled shramshield_core, so /health shows what is deployed."""
+    try:
+        from shramshield_core import __version__
+
+        return __version__
+    except Exception:  # pragma: no cover - the layer is always present in Lambda
+        return "unknown"
+
+
 def handle_health(event: Dict[str, Any]) -> Dict[str, Any]:
     return json_response(
         200,
         {
             "ok": True,
             "service": "shramshield",
-            "version": "0.1.0",
+            "version": _core_version(),
             "thermofeel": _get_thermofeel_version(),
         },
     )
