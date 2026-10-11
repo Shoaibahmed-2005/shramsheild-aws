@@ -29,7 +29,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 25.0 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 25.0 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 1,
@@ -45,7 +45,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.8 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.8 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 2,
@@ -61,7 +61,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.6 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.6 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 3,
@@ -77,7 +77,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.4 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.4 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 4,
@@ -93,7 +93,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.3 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.3 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 5,
@@ -109,7 +109,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.2 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.2 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 6,
@@ -125,7 +125,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 24.5 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 24.5 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 7,
@@ -141,7 +141,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 25.4 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 25.4 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 8,
@@ -157,7 +157,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 26.6 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 26.6 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 9,
@@ -173,7 +173,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 27.8 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 27.8 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 10,
@@ -189,7 +189,7 @@
       "max_work_min": 45,
       "min_rest_min": 15,
       "limit_c": 29.0,
-      "reason": "WBGT 28.9 C is at or below the 50-75% work limit of 29.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 28.9 C is within the 29.0 C limit for 50-75% work (moderate work, acclimatized)."
     },
     {
       "hour": 11,
@@ -205,7 +205,7 @@
       "max_work_min": 30,
       "min_rest_min": 30,
       "limit_c": 30.0,
-      "reason": "WBGT 29.9 C is at or below the 25-50% work limit of 30.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 29.9 C is within the 30.0 C limit for 25-50% work (moderate work, acclimatized)."
     },
     {
       "hour": 12,
@@ -221,7 +221,7 @@
       "max_work_min": 15,
       "min_rest_min": 45,
       "limit_c": 31.5,
-      "reason": "WBGT 30.8 C is at or below the 0-25% work limit of 31.5 C for moderate work (acclimatized)."
+      "reason": "WBGT 30.8 C is within the 31.5 C limit for 0-25% work (moderate work, acclimatized)."
     },
     {
       "hour": 13,
@@ -237,7 +237,7 @@
       "max_work_min": 15,
       "min_rest_min": 45,
       "limit_c": 31.5,
-      "reason": "WBGT 31.5 C is at or below the 0-25% work limit of 31.5 C for moderate work (acclimatized)."
+      "reason": "WBGT 31.5 C is within the 31.5 C limit for 0-25% work (moderate work, acclimatized)."
     },
     {
       "hour": 14,
@@ -269,7 +269,7 @@
       "max_work_min": 15,
       "min_rest_min": 45,
       "limit_c": 31.5,
-      "reason": "WBGT 31.4 C is at or below the 0-25% work limit of 31.5 C for moderate work (acclimatized)."
+      "reason": "WBGT 31.4 C is within the 31.5 C limit for 0-25% work (moderate work, acclimatized)."
     },
     {
       "hour": 16,
@@ -285,7 +285,7 @@
       "max_work_min": 15,
       "min_rest_min": 45,
       "limit_c": 31.5,
-      "reason": "WBGT 30.2 C is at or below the 0-25% work limit of 31.5 C for moderate work (acclimatized)."
+      "reason": "WBGT 30.2 C is within the 31.5 C limit for 0-25% work (moderate work, acclimatized)."
     },
     {
       "hour": 17,
@@ -301,7 +301,7 @@
       "max_work_min": 45,
       "min_rest_min": 15,
       "limit_c": 29.0,
-      "reason": "WBGT 28.6 C is at or below the 50-75% work limit of 29.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 28.6 C is within the 29.0 C limit for 50-75% work (moderate work, acclimatized)."
     },
     {
       "hour": 18,
@@ -317,7 +317,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 27.0 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 27.0 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 19,
@@ -333,7 +333,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 26.4 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 26.4 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 20,
@@ -349,7 +349,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 26.0 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 26.0 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 21,
@@ -365,7 +365,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 25.7 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 25.7 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 22,
@@ -381,7 +381,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 25.4 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 25.4 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     },
     {
       "hour": 23,
@@ -397,7 +397,7 @@
       "max_work_min": 60,
       "min_rest_min": 0,
       "limit_c": 28.0,
-      "reason": "WBGT 25.2 C is at or below the 75-100% work limit of 28.0 C for moderate work (acclimatized)."
+      "reason": "WBGT 25.2 C is within the 28.0 C limit for 75-100% work (moderate work, acclimatized)."
     }
   ],
   "summary": {
