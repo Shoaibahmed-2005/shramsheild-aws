@@ -6,6 +6,7 @@ import { BacktestPage } from './pages/BacktestPage.jsx';
 import { MethodPage } from './pages/MethodPage.jsx';
 
 import { DISCLAIMER_TEXT } from './utils.js';
+import { getHealth, isMockMode } from './api.js';
 
 function resolveRoute(hash) {
     const path = (hash || '#/')
@@ -105,6 +106,7 @@ function App() {
     );
 
     const [language, setLanguage] = useState('en');
+    const [systemStatus, setSystemStatus] = useState({ loading: true, online: false });
 
     useEffect(() => {
         function handleHashChange() {
@@ -115,6 +117,18 @@ function App() {
         return () => {
             window.removeEventListener('hashchange', handleHashChange);
         };
+    }, []);
+
+    useEffect(() => {
+        let active = true;
+        getHealth()
+            .then((health) => {
+                if (active) setSystemStatus({ loading: false, online: Boolean(health.ok), version: health.version });
+            })
+            .catch(() => {
+                if (active) setSystemStatus({ loading: false, online: false });
+            });
+        return () => { active = false; };
     }, []);
 
     const route = resolveRoute(hash);
@@ -287,6 +301,13 @@ function App() {
 
                     <p className="footer-brand">
                         ShramShield <span aria-hidden="true">·</span> Heat Safety Operations
+                    </p>
+                    <p className="system-status" role="status">
+                        System status: {systemStatus.loading
+                            ? 'Checking API…'
+                            : systemStatus.online
+                                ? (isMockMode ? 'Fixture mode' : `API online, v${systemStatus.version}`)
+                                : 'API unreachable'}
                     </p>
                 </footer>
             </div>

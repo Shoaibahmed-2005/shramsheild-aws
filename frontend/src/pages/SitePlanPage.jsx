@@ -3,6 +3,22 @@ import { getSite, getPlan } from '../api.js';
 import { LEVELS, getLevelConfig } from '../levels.js';
 import { formatHourEn, formatHourHi, formatHour } from '../utils.js';
 
+function indiaDateOffset(offset) {
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Kolkata', year: 'numeric', month: '2-digit', day: '2-digit'
+  }).formatToParts(new Date());
+  const values = Object.fromEntries(parts.map(({ type, value }) => [type, value]));
+  const date = new Date(Date.UTC(values.year, Number(values.month) - 1, Number(values.day) + offset));
+  return date.toISOString().slice(0, 10);
+}
+
+function generatedTimeIndia(timestamp) {
+  if (!timestamp) return null;
+  return new Intl.DateTimeFormat('en-IN', {
+    timeZone: 'Asia/Kolkata', hour: 'numeric', minute: '2-digit'
+  }).format(new Date(timestamp));
+}
+
 export function SitePlanPage({ siteId, language = 'en' }) {
   const [site, setSite] = useState(null);
   const [plan, setPlan] = useState(null);
@@ -10,6 +26,15 @@ export function SitePlanPage({ siteId, language = 'en' }) {
   const [error, setError] = useState(null);
   const [selectedHourIndex, setSelectedHourIndex] = useState(null);
   const [copied, setCopied] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(() => indiaDateOffset(0));
+  const [cacheStatus, setCacheStatus] = useState(null);
+
+  const dateOptions = [
+    { label: 'Yesterday', value: indiaDateOffset(-1) },
+    { label: 'Today', value: indiaDateOffset(0) },
+    { label: 'Tomorrow', value: indiaDateOffset(1) },
+    { label: 'Day after', value: indiaDateOffset(2) },
+  ];
 
   const fetchData = async () => {
     try {
@@ -17,16 +42,17 @@ export function SitePlanPage({ siteId, language = 'en' }) {
       setError(null);
       const [siteRes, planRes] = await Promise.all([
         getSite(siteId),
-        getPlan(siteId)
+        getPlan(siteId, selectedDate)
       ]);
       setSite(siteRes);
-      setPlan(planRes);
+      setPlan(planRes.plan);
+      setCacheStatus(planRes.cache);
 
       // Default selected hour: peak hour or first work hour with danger, else peak_hour
-      if (planRes?.summary?.peak_hour !== undefined && planRes.summary.peak_hour !== null) {
-        setSelectedHourIndex(planRes.summary.peak_hour);
-      } else if (planRes?.hours?.length > 0) {
-        const firstWork = planRes.hours.find((h) => h.in_work_hours);
+      if (planRes.plan?.summary?.peak_hour !== undefined && planRes.plan.summary.peak_hour !== null) {
+        setSelectedHourIndex(planRes.plan.summary.peak_hour);
+      } else if (planRes.plan?.hours?.length > 0) {
+        const firstWork = planRes.plan.hours.find((h) => h.in_work_hours);
         setSelectedHourIndex(firstWork ? firstWork.hour : 12);
       }
     } catch (err) {
@@ -38,7 +64,7 @@ export function SitePlanPage({ siteId, language = 'en' }) {
 
   useEffect(() => {
     fetchData();
-  }, [siteId]);
+  }, [siteId, selectedDate]);
 
   const handleCopyMessage = (text) => {
     if (!text) return;
@@ -127,7 +153,29 @@ export function SitePlanPage({ siteId, language = 'en' }) {
             Peak: {plan.summary?.peak_wbgt_c?.toFixed(1)}°C at {formatHourEn(plan.summary?.peak_hour)}
           </span>
         </div>
+        <div className="plan-freshness" role="status">
+          {cacheStatus === 'HIT' && 'Data loaded from cache.'}
+          {cacheStatus === 'MISS' && 'Fresh plan data.'}
+          {generatedTimeIndia(plan.generated_at) && ` Generated ${generatedTimeIndia(plan.generated_at)} India time.`}
+        </div>
       </div>
+
+      <section className="date-selector" aria-label="Plan date">
+        <span>Plan date</span>
+        <div role="group" aria-label="Choose plan date">
+          {dateOptions.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              className={selectedDate === option.value ? 'date-option active' : 'date-option'}
+              aria-pressed={selectedDate === option.value}
+              onClick={() => setSelectedDate(option.value)}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
+      </section>
 
       {/* 24-Hour Heat Strip */}
       <section className="heat-strip-wrapper" aria-labelledby="heat-strip-heading">
