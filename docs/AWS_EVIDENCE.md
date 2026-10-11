@@ -41,8 +41,9 @@ declared in `template.yaml` and are marked with what is and is not yet proven.
 | 10 | **Amazon EventBridge Scheduler** | Daily 06:00 IST trigger for the morning run, `cron(30 0 * * ? *)`. | `ScheduleV2` event on `SchedulerFunction` in `template.yaml`. **Currently `DISABLED` on purpose** (see Pending). |
 
 **Not used / not deployed:** AWS Amplify Hosting is planned for the dashboard but has **not**
-been deployed yet. AWS Budgets is **not confirmed** (see Pending). Do not count either of
-these in a public service count until they are evidenced here.
+been deployed yet. AWS Budgets is **not used**: the project runs inside the AWS Free Tier and
+the team chose not to create a budget (see section 8). Do not count either of these in a
+public service count.
 
 ---
 
@@ -169,7 +170,7 @@ ARNs.
 | 8 | `aws-apigateway-throttling.png` | The API and its throttling settings | Console → **API Gateway** → `shramshield` HTTP API → *Stages* → `$default` → **Default route throttling**: burst 20, rate 10 |
 | 9 | `aws-cloudwatch-logretention.png` | Log groups after retention is set | Console → **CloudWatch** → *Log groups* → filter `shramshield` → the **Retention** column should read `14 days` once the script has been run |
 | 10 | `aws-amplify-app.png` | The hosted dashboard | Console → **Amplify** → the `shramshield-dashboard` app → the `main` branch showing a successful deployment and the public URL. **Pending: Amplify is not deployed yet.** |
-| 11 | `aws-budgets.png` | The cost budget | Console → **Billing and Cost Management** → *Budgets* → open the budget created in H2 → show its limit and current spend. **Pending: not confirmed yet.** |
+| 11 | *(skipped)* | — | No budget exists, so there is nothing to screenshot. If one is created later, capture it at Console → **Billing and Cost Management** → *Budgets*. |
 
 The Step Functions graph needs a recent or live execution, so take screenshots 2, 3 and 4
 during or straight after a rehearsal run.
@@ -183,8 +184,8 @@ until it is.
 
 | # | Item | Why it is pending | Who clears it |
 |---|---|---|---|
-| 1 | **Budget alarm** | The `describe-budgets` command failed. P2 ran it in `cmd.exe` with PowerShell syntax (`$acct = aws sts …`), so `$acct` was never set and the CLI rejected `--account-id` with "Invalid length for parameter AccountId, value: 5". The budget itself may well exist; it simply was not read. | P2, re-run it (see below) |
-| 2 | **Full resource list** | The `describe-stack-resources` table was truncated by the console pager after `NotifyFunctionRole`. | P2, re-run with `--output json` or pipe through `cat` |
+| 1 | **Budget alarm — not used, by decision** | The project runs inside the AWS Free Tier and no budget has been created, so there is nothing to confirm. The `describe-budgets` command in P2's capture also failed for an unrelated reason: PowerShell syntax (`$acct = aws sts …`) was used in `cmd.exe`, so `--account-id` received the literal string `$acct`. Closed, not outstanding. See the cost note below. | closed |
+| 2 | **Full resource list** | The `describe-stack-resources` table was truncated by the console pager after `NotifyFunctionRole`. Low value: `template.yaml` already lists all ten logical resources, and the missing rows are the IAM roles and Lambda permissions SAM generates. Re-run with `--output json` only if a complete listing is wanted for the judges. | optional |
 | 3 | **Log retention** | Still `None` on all three groups. `set_log_retention.py` is written but has not been run. | P2, run the script |
 | 4 | **Amplify Hosting** | The dashboard is not deployed. `deploy_frontend.py` is not written yet (Phase B). | P2, in P2.4 Phase B |
 | 5 | **`EscalationFailedAlarm`** | Added to `template.yaml` but not deployed; it ships with the Phase B redeploy that sets `DashboardUrl`. | P2, Phase B |
@@ -192,23 +193,35 @@ until it is.
 | 7 | **Three rehearsals** | Tests A, B and C with a stopwatch are not yet recorded. The empty table is in `backend/DEPLOY_NOTES.md` section 9. | Human + P2 |
 | 8 | **Polly console evidence** | Polly is exercised at runtime and proven by the voice notes the phones received, but no console screenshot exists yet. | Human, screenshot 7 |
 
-To clear item 1, in **PowerShell** (not `cmd.exe`):
+### Cost note (no budget configured)
 
-```powershell
-$acct = aws sts get-caller-identity --query Account --output text
-aws budgets describe-budgets --account-id $acct --query "Budgets[].[BudgetName,BudgetLimit.Amount,BudgetLimit.Unit]" --output table
-```
+The team runs this inside the AWS Free Tier and has chosen not to create a budget. That is a
+legitimate decision for a three-day event, and it is recorded here rather than hidden.
 
-or in a single `cmd.exe` line:
+What it does and does not give us:
 
-```
-for /f %i in ('aws sts get-caller-identity --query Account --output text') do aws budgets describe-budgets --account-id %i --output table
-```
+- The Free Tier is **not a spending cap**. Exceeding a free allowance bills the account
+  silently; nothing in this stack stops that.
+- The one component actually drifting is **CloudWatch Logs retention**, currently `None` on
+  all three log groups (section 5), so log data accumulates for ever. The CloudWatch Logs
+  free allowance is finite, and this is the most likely thing to quietly cross it. Running
+  `backend/scripts/set_log_retention.py` (pending item 3) is the real cost guardrail here,
+  more so than a budget would be.
+- Everything else is shaped to cost ~nothing when idle: DynamoDB is `PAY_PER_REQUEST`, the
+  voice bucket expires objects after 7 days, and the EventBridge schedule is `DISABLED`, so
+  nothing runs unless someone triggers it.
+- Per-request throttling (burst 20, rate 10) caps how fast the API can be driven, which
+  limits abuse-driven cost.
 
-To clear item 2:
+If the account is kept beyond judging, create a budget then: AWS Budgets gives the first two
+budgets free, and a single monthly cost budget with an email alert takes about a minute at
+Console → **Billing and Cost Management** → *Budgets* → **Create budget**. Section 10 of
+`backend/DEPLOY_NOTES.md` covers tearing everything down once the results are out.
+
+To complete the resource list in section 3 (optional, item 2):
 
 ```powershell
 aws cloudformation describe-stack-resources --stack-name shramshield --output json > resources.json
 ```
 
-Then paste `resources.json` (with the account id removed) and section 3 above can be completed.
+Then paste `resources.json` (with the account id removed) and section 3 can be filled in.
