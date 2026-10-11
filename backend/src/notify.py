@@ -168,8 +168,13 @@ def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:
     runs.add_event(table, run_id, "telegram_sent", f"plan sent to {contact_name}")
     runs.add_event(table, run_id, event_notified, "waiting for acknowledgement")
 
-    # Compute ack deadline
-    timeout_secs = int(site.get("ack_timeout_seconds", 900))
+    # Compute ack deadline using the run's own timeout override
+    timeout_secs = (
+        event.get("ack_timeout_seconds")
+        or (run.get("ack_timeout_seconds") if run else None)
+        or site.get("ack_timeout_seconds", 900)
+    )
+    timeout_secs = int(timeout_secs)
     deadline_ts = (datetime.now(timezone.utc) + timedelta(seconds=timeout_secs)).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     # Set status: primary -> WAITING_ACK (ESCALATED is set by record.py when moving to backup)

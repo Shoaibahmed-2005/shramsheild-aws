@@ -938,3 +938,75 @@ def test_seed_sites_set_chat(mock_dynamodb, monkeypatch):
     assert isinstance(updated["backup"]["telegram_chat_id"], int)
 
 
+def test_notify_ack_deadline_uses_run_timeout_override_60s(mock_dynamodb, monkeypatch):
+    """Verify that run.ack_deadline uses the run's 60s override instead of site's default (900s)."""
+    import notify
+    from common import runs, telegram, voice
+
+    # Site with default timeout = 900 seconds
+    site = sample_site(
+        site_id="chn-01",
+        supervisor={"name": "Kavitha", "telegram_chat_id": 11111},
+        backup={"name": "Rajesh", "telegram_chat_id": 22222},
+        ack_timeout_seconds=900,
+    )
+    db.put_site(mock_dynamodb, site)
+
+    plan_obj = {
+        "plan_id": "chn-01_2026-10-11",
+        "site_id": "chn-01",
+        "messages": {"hi": "आज गर्मी का खतरा मध्यम रहेगा।", "en": "Moderate heat today."},
+        "disclaimer": "Screening advice only.",
+        "summary": {"peak_wbgt_c": 31.0, "peak_hour": 14},
+    }
+    db.put_cached_plan(mock_dynamodb, "chn-01", "2026-10-11", plan_obj, ttl_seconds=1200)
+
+    # 1. Primary stage with 60s override
+    run_id = "chn-01_override_run"
+    runs.create_run(mock_dynamodb, run_id, "chn-01", "chn-01_2026-10-11", ack_timeout_seconds=60)
+
+    monkeypatch.setattr(telegram, "send_message", lambda *args, **kwargs: {"ok": True})
+    monkeypatch.setattr(telegram, "send_audio", lambda *args, **kwargs: {"ok": True})
+    monkeypatch.setattr(voice, "synthesize", lambda *args, **kwargs: "https://mock/v.mp3")
+
+    event_primary = {
+        "action": "notify",
+        "stage": "primary",
+        "run_id": run_id,
+        "site_id": "chn-01",
+        "token": "tok-prim-60s",
+        "ack_timeout_seconds": 60,
+    }
+    res_primary = notify.handler(event_primary)
+    assert res_primary.get("status") == "waiting_ack"
+
+    run_rec = runs.get_run(mock_dynamodb, run_id)
+    assert run_rec["status"] == "WAITING_ACK"
+    assert run_rec["active_stage"] == "primary"
+
+    deadline_dt = datetime.strptime(run_rec["ack_deadline"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    now_dt = datetime.now(timezone.utc)
+    delta_secs = (deadline_dt - now_dt).total_seconds()
+    # Should be approximately 60 seconds (55..65s), definitely not 900s!
+    assert 55 <= delta_secs <= 65, f"Expected ~60s deadline, got {delta_secs}s (site default is 900s)"
+
+    # 2. Backup stage with 60s override
+    event_backup = {
+        "action": "notify",
+        "stage": "backup",
+        "run_id": run_id,
+        "site_id": "chn-01",
+        "token": "tok-back-60s",
+        "ack_timeout_seconds": 60,
+    }
+    res_backup = notify.handler(event_backup)
+    assert res_backup.get("status") == "waiting_ack"
+
+    run_rec_backup = runs.get_run(mock_dynamodb, run_id)
+    assert run_rec_backup["active_stage"] == "backup"
+    deadline_backup_dt = datetime.strptime(run_rec_backup["ack_deadline"], "%Y-%m-%dT%H:%M:%SZ").replace(tzinfo=timezone.utc)
+    now_backup_dt = datetime.now(timezone.utc)
+    delta_backup_secs = (deadline_backup_dt - now_backup_dt).total_seconds()
+    assert 55 <= delta_backup_secs <= 65, f"Expected ~60s backup deadline, got {delta_backup_secs}s"
+
+

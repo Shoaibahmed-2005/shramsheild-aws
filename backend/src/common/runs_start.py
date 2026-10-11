@@ -86,7 +86,14 @@ def start_run_for_site(
     run_id = f"{site_id}_{utc_now.strftime('%Y%m%dT%H%M%S')}"
     plan_id = plan["plan_id"]
 
-    run_obj = runs.create_run(table, run_id, site_id, plan_id, initial_event_detail=detail_msg)
+    run_obj = runs.create_run(
+        table,
+        run_id,
+        site_id,
+        plan_id,
+        initial_event_detail=detail_msg,
+        ack_timeout_seconds=timeout,
+    )
 
     sm_arn = state_machine_arn or os.environ.get("STATE_MACHINE_ARN")
     if not sm_arn:

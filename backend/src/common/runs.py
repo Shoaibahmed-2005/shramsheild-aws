@@ -34,6 +34,7 @@ def create_run(
     site_id: str,
     plan_id: str,
     initial_event_detail: Optional[str] = None,
+    ack_timeout_seconds: Optional[int] = None,
 ) -> Dict[str, Any]:
     """Create a new run record and update the site's latest run pointer."""
     now_ts = now_utc_iso()
@@ -55,6 +56,8 @@ def create_run(
         "created_at": now_ts,
         "events": events,
     }
+    if ack_timeout_seconds is not None:
+        run_obj["ack_timeout_seconds"] = int(ack_timeout_seconds)
 
     # Put run item
     table.put_item(

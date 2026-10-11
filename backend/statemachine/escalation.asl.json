@@ -12,7 +12,8 @@
           "stage": "primary",
           "run_id.$": "$.run_id",
           "site_id.$": "$.site_id",
-          "token.$": "$$.Task.Token"
+          "token.$": "$$.Task.Token",
+          "ack_timeout_seconds.$": "$.ack_timeout_seconds"
         }
       },
       "TimeoutSecondsPath": "$.ack_timeout_seconds",
@@ -54,7 +55,8 @@
           "stage": "backup",
           "run_id.$": "$.run_id",
           "site_id.$": "$.site_id",
-          "token.$": "$$.Task.Token"
+          "token.$": "$$.Task.Token",
+          "ack_timeout_seconds.$": "$.ack_timeout_seconds"
         }
       },
       "TimeoutSecondsPath": "$.ack_timeout_seconds",
