@@ -1,0 +1,261 @@
+{
+  "_fixture": false,
+  "generated_at": "2026-10-09T18:45:03Z",
+  "period": {
+    "start": "2024-04-01",
+    "end": "2024-06-30"
+  },
+  "profile": {
+    "workload": "moderate",
+    "acclimatized": true,
+    "work_start_hour": 7,
+    "work_end_hour": 18
+  },
+  "dangerous_levels": [
+    "RED",
+    "STOP"
+  ],
+  "baseline_thresholds_c": [
+    37,
+    40,
+    42
+  ],
+  "sites": [
+    {
+      "site_id": "chn-01",
+      "name": "Chennai demo site",
+      "lat": 13.085,
+      "lon": 80.2101,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 75,
+        "YELLOW": 88,
+        "ORANGE": 159,
+        "RED": 293,
+        "STOP": 386
+      },
+      "dangerous_hours": 679,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 47,
+          "caught": 47,
+          "missed": 632,
+          "missed_pct": 93.1,
+          "false_alarm_hours": 0
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 6,
+          "caught": 6,
+          "missed": 673,
+          "missed_pct": 99.1,
+          "false_alarm_hours": 0
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 0,
+          "caught": 0,
+          "missed": 679,
+          "missed_pct": 100.0,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-05-21T09:00",
+        "air_temp_c": 28.8,
+        "rh_pct": 84,
+        "wbgt_c": 30.8,
+        "level": "RED"
+      }
+    },
+    {
+      "site_id": "del-01",
+      "name": "Delhi demo site",
+      "lat": 28.6139,
+      "lon": 77.209,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 445,
+        "YELLOW": 125,
+        "ORANGE": 111,
+        "RED": 183,
+        "STOP": 137
+      },
+      "dangerous_hours": 320,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 491,
+          "caught": 253,
+          "missed": 67,
+          "missed_pct": 20.9,
+          "false_alarm_hours": 158
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 268,
+          "caught": 162,
+          "missed": 158,
+          "missed_pct": 49.4,
+          "false_alarm_hours": 57
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 165,
+          "caught": 112,
+          "missed": 208,
+          "missed_pct": 65.0,
+          "false_alarm_hours": 27
+        }
+      ],
+      "example_hour": {
+        "time": "2024-06-30T08:00",
+        "air_temp_c": 29.2,
+        "rh_pct": 81,
+        "wbgt_c": 30.3,
+        "level": "RED"
+      }
+    },
+    {
+      "site_id": "kol-01",
+      "name": "Kolkata demo site",
+      "lat": 22.5726,
+      "lon": 88.3639,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 75,
+        "YELLOW": 71,
+        "ORANGE": 91,
+        "RED": 228,
+        "STOP": 536
+      },
+      "dangerous_hours": 764,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 159,
+          "caught": 149,
+          "missed": 615,
+          "missed_pct": 80.5,
+          "false_alarm_hours": 3
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 48,
+          "caught": 48,
+          "missed": 716,
+          "missed_pct": 93.7,
+          "false_alarm_hours": 0
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 4,
+          "caught": 4,
+          "missed": 760,
+          "missed_pct": 99.5,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-05-21T13:00",
+        "air_temp_c": 28.9,
+        "rh_pct": 84,
+        "wbgt_c": 31.8,
+        "level": "STOP"
+      }
+    },
+    {
+      "site_id": "hyd-01",
+      "name": "Hyderabad demo site",
+      "lat": 17.385,
+      "lon": 78.4867,
+      "work_hours_total": 1001,
+      "work_hours_with_data": 1001,
+      "level_counts": {
+        "GREEN": 366,
+        "YELLOW": 141,
+        "ORANGE": 160,
+        "RED": 182,
+        "STOP": 152
+      },
+      "dangerous_hours": 334,
+      "by_threshold": [
+        {
+          "threshold_c": 37,
+          "alert_hours": 207,
+          "caught": 141,
+          "missed": 193,
+          "missed_pct": 57.8,
+          "false_alarm_hours": 37
+        },
+        {
+          "threshold_c": 40,
+          "alert_hours": 23,
+          "caught": 17,
+          "missed": 317,
+          "missed_pct": 94.9,
+          "false_alarm_hours": 2
+        },
+        {
+          "threshold_c": 42,
+          "alert_hours": 0,
+          "caught": 0,
+          "missed": 334,
+          "missed_pct": 100.0,
+          "false_alarm_hours": 0
+        }
+      ],
+      "example_hour": {
+        "time": "2024-06-05T09:00",
+        "air_temp_c": 28.5,
+        "rh_pct": 78,
+        "wbgt_c": 30.5,
+        "level": "RED"
+      }
+    }
+  ],
+  "totals": {
+    "dangerous_hours": 2097,
+    "by_threshold": [
+      {
+        "threshold_c": 37,
+        "alert_hours": 904,
+        "caught": 590,
+        "missed": 1507,
+        "missed_pct": 71.9,
+        "false_alarm_hours": 198
+      },
+      {
+        "threshold_c": 40,
+        "alert_hours": 345,
+        "caught": 233,
+        "missed": 1864,
+        "missed_pct": 88.9,
+        "false_alarm_hours": 59
+      },
+      {
+        "threshold_c": 42,
+        "alert_hours": 169,
+        "caught": 116,
+        "missed": 1981,
+        "missed_pct": 94.5,
+        "false_alarm_hours": 27
+      }
+    ]
+  },
+  "caveats": [
+    "Compares two methods on the same historical data; it is not validated against heat illness cases.",
+    "Uses historical reanalysis data, not archived forecasts, so real-time forecast error is not included.",
+    "WBGT is estimated from modelled weather at a city point, not measured at the worksite.",
+    "Screening limits are for an 8-hour workday and are not a prescription of work and rest periods."
+  ],
+  "sources": {
+    "weather": "Open-Meteo archive (ERA5 based reanalysis)",
+    "wbgt_method": "liljegren",
+    "thermofeel": "2.3.0"
+  }
+}
