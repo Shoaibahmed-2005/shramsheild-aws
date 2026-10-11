@@ -142,6 +142,14 @@ name, and skips groups that do not exist yet because a function has never been
 invoked. Re-running it is safe: groups already at the target retention are
 reported as `unchanged`.
 
+**Status: done.** Run by P2 on 11 October 2026 against the live stack. All three
+Lambda log groups (`ApiFunction`, `NotifyFunction`, `RecordFunction`) are at
+**14 days**, confirmed separately with
+`aws logs describe-log-groups --region ap-south-1`. `SchedulerFunction` and the
+state machine were reported `absent` and skipped, which is correct: the schedule
+is `DISABLED` so that function has never run, and the state machine has no
+`Logging` property. Full output is in `docs/AWS_EVIDENCE.md` section 5.
+
 Note: the state machine has no `Logging` property in `template.yaml`, so Step
 Functions does not write to CloudWatch Logs and has no log group. The script
 reports it as `absent` rather than failing. Execution history is still visible in

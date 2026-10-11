@@ -70,6 +70,14 @@ From `aws cloudformation describe-stack-resources --stack-name shramshield`.
 | HttpApiApiGatewayDefaultStage | `AWS::ApiGatewayV2::Stage` | `$default` | CREATE_COMPLETE |
 | NotifyFunction | `AWS::Lambda::Function` | `shramshield-NotifyFunction-En8It1k1V4RJ` | UPDATE_COMPLETE |
 | NotifyFunctionRole | `AWS::IAM::Role` | *(cut off by the pager)* | pending |
+| RecordFunction | `AWS::Lambda::Function` | `shramshield-RecordFunction-cLvzBMyc0WJm` | deployed † |
+| SchedulerFunction | `AWS::Lambda::Function` | `shramshield-SchedulerFunction-1VylrtFdWEuI` | deployed † |
+
+† These two rows were below the pager cut in the `describe-stack-resources` capture. Their
+physical ids are still first-hand evidence: `set_log_retention.py` resolves log groups from
+`describe-stack-resources`, and its output (section 5) names both functions. `RecordFunction`
+also appears in the `describe-log-groups` listing. Their CloudFormation status was not
+captured, so it is recorded as "deployed" rather than a specific `*_COMPLETE` value.
 
 For reference, `backend/template.yaml` declares these ten logical resources, so the full
 listing should contain all of them plus the roles and permissions SAM generates:
@@ -99,27 +107,50 @@ routes is a stack parameter (`NoEcho`) and appears nowhere in this repository.
 
 ## 5. CloudWatch log groups and retention
 
-From `aws logs describe-log-groups`.
+**Retention is set to 14 days. Done, not pending.** P2 ran
+`backend/scripts/set_log_retention.py` on 11 October 2026 and then verified the result
+independently with the AWS CLI.
+
+Verified with
+`aws logs describe-log-groups --region ap-south-1 --query "logGroups[?contains(logGroupName,'shramshield')].[logGroupName,retentionInDays]"`:
 
 | Log group | Retention |
 |---|---|
-| `/aws/lambda/shramshield-ApiFunction-boJ3dFpgrSLF` | `None` (never expire) |
-| `/aws/lambda/shramshield-NotifyFunction-En8It1k1V4RJ` | `None` (never expire) |
-| `/aws/lambda/shramshield-RecordFunction-cLvzBMyc0WJm` | `None` (never expire) |
+| `/aws/lambda/shramshield-ApiFunction-boJ3dFpgrSLF` | **14 days** |
+| `/aws/lambda/shramshield-NotifyFunction-En8It1k1V4RJ` | **14 days** |
+| `/aws/lambda/shramshield-RecordFunction-cLvzBMyc0WJm` | **14 days** |
 
-Two things this shows:
+This replaces the earlier capture, in which all three read `None` (never expire). Logs are no
+longer kept and billed indefinitely.
 
-1. **Retention is unset on all three groups**, so logs are kept for ever and billed for ever.
-   `backend/scripts/set_log_retention.py` fixes this. It has **not been run yet** because the
-   machine P2.4a was written on has no AWS credentials. P2 should run:
-   `python backend\scripts\set_log_retention.py --dry-run` then without the flag.
-2. **There is no log group for `SchedulerFunction`**, which is expected: the morning schedule
-   is `DISABLED`, so that function has never been invoked and Lambda has not created its log
-   group yet. The retention script reports such groups as `absent` and skips them.
+Output of the script's most recent run, which resolved five candidate log groups:
 
-There is also no Step Functions log group, because `template.yaml` sets no `Logging` property
-on the state machine. Execution history is still fully visible in the Step Functions console,
-which is where the screenshots come from.
+```
+stack shramshield  region ap-south-1  target retention 14 days
+
+log group                                                        before    after
+/aws/lambda/shramshield-ApiFunction-boJ3dFpgrSLF                     14   unchanged
+/aws/lambda/shramshield-NotifyFunction-En8It1k1V4RJ                  14   unchanged
+/aws/lambda/shramshield-RecordFunction-cLvzBMyc0WJm                  14   unchanged
+/aws/lambda/shramshield-SchedulerFunction-1VylrtFdWEuI           absent   skipped
+/aws/vendedlogs/states/EscalationStateMachine-pGn7KMFttx9F-Logs  absent   skipped
+
+log groups found 5, changed 0, failed 0
+```
+
+Three things this shows:
+
+1. **The three live groups are at 14 days.** They read `unchanged` and `changed 0` because
+   this was a re-run after the first application, which is the point: the script is
+   idempotent and safe to run again at any time.
+2. **`SchedulerFunction` has no log group**, reported as `absent` and skipped rather than
+   failing. Expected: the morning schedule is `DISABLED`, so that function has never been
+   invoked and Lambda has not created its log group. The script still found the function
+   itself through `describe-stack-resources`, which is how its physical id is known.
+3. **The state machine has no log group either**, also `absent`. `template.yaml` sets no
+   `Logging` property on `EscalationStateMachine`, so Step Functions does not write to
+   CloudWatch Logs. Execution history is still fully visible in the Step Functions console,
+   which is where screenshots 2 and 3 come from.
 
 ---
 
@@ -168,7 +199,7 @@ ARNs.
 | 6 | `aws-s3-voice-objects.png` | The generated MP3 audio objects | Console → **S3** → *Buckets* → `shramshield-voicebucket-…` → open the `voice/` prefix → show the `{run_id}_{lang}.mp3` objects with sizes and timestamps |
 | 7 | `aws-polly-voice.png` | Hindi neural voice available in the region | Console → **Amazon Polly** → *Text-to-Speech* → Language `Hindi (hi-IN)` → Voice `Kajal` → Engine **Neural** → paste the Hindi message and press **Listen** |
 | 8 | `aws-apigateway-throttling.png` | The API and its throttling settings | Console → **API Gateway** → `shramshield` HTTP API → *Stages* → `$default` → **Default route throttling**: burst 20, rate 10 |
-| 9 | `aws-cloudwatch-logretention.png` | Log groups after retention is set | Console → **CloudWatch** → *Log groups* → filter `shramshield` → the **Retention** column should read `14 days` once the script has been run |
+| 9 | `aws-cloudwatch-logretention.png` | Log groups showing a finite retention | Console → **CloudWatch** → *Log groups* → filter `shramshield` → the **Retention** column reads `14 days` on all three groups. **Ready to capture now.** |
 | 10 | `aws-amplify-app.png` | The hosted dashboard | Console → **Amplify** → the `shramshield-dashboard` app → the `main` branch showing a successful deployment and the public URL. **Pending: Amplify is not deployed yet.** |
 | 11 | *(skipped)* | — | No budget exists, so there is nothing to screenshot. If one is created later, capture it at Console → **Billing and Cost Management** → *Budgets*. |
 
@@ -186,7 +217,7 @@ until it is.
 |---|---|---|---|
 | 1 | **Budget alarm — not used, by decision** | The project runs inside the AWS Free Tier and no budget has been created, so there is nothing to confirm. The `describe-budgets` command in P2's capture also failed for an unrelated reason: PowerShell syntax (`$acct = aws sts …`) was used in `cmd.exe`, so `--account-id` received the literal string `$acct`. Closed, not outstanding. See the cost note below. | closed |
 | 2 | **Full resource list** | The `describe-stack-resources` table was truncated by the console pager after `NotifyFunctionRole`. Low value: `template.yaml` already lists all ten logical resources, and the missing rows are the IAM roles and Lambda permissions SAM generates. Re-run with `--output json` only if a complete listing is wanted for the judges. | optional |
-| 3 | **Log retention** | Still `None` on all three groups. `set_log_retention.py` is written but has not been run. | P2, run the script |
+| 3 | **Log retention — done** | `set_log_retention.py` was run by P2 on 11 October 2026 and all three live log groups are at 14 days, verified independently with `describe-log-groups` (section 5). Closed. | closed |
 | 4 | **Amplify Hosting** | The dashboard is not deployed. `deploy_frontend.py` is not written yet (Phase B). | P2, in P2.4 Phase B |
 | 5 | **`EscalationFailedAlarm`** | Added to `template.yaml` but not deployed; it ships with the Phase B redeploy that sets `DashboardUrl`. | P2, Phase B |
 | 6 | **EventBridge schedule** | `ScheduleState` is `DISABLED` by design, so the daily run has never fired and `SchedulerFunction` has no log group. This is intentional, not a fault. Decide before the demo whether to enable it. | Human |
@@ -202,11 +233,10 @@ What it does and does not give us:
 
 - The Free Tier is **not a spending cap**. Exceeding a free allowance bills the account
   silently; nothing in this stack stops that.
-- The one component actually drifting is **CloudWatch Logs retention**, currently `None` on
-  all three log groups (section 5), so log data accumulates for ever. The CloudWatch Logs
-  free allowance is finite, and this is the most likely thing to quietly cross it. Running
-  `backend/scripts/set_log_retention.py` (pending item 3) is the real cost guardrail here,
-  more so than a budget would be.
+- The component most likely to drift was **CloudWatch Logs retention**, which was unset
+  (`None`) so log data accumulated for ever. **This has been fixed:** all three live log
+  groups are now at 14 days (section 5). That was the real cost guardrail here, more so
+  than a budget would have been, and it is now in place.
 - Everything else is shaped to cost ~nothing when idle: DynamoDB is `PAY_PER_REQUEST`, the
   voice bucket expires objects after 7 days, and the EventBridge schedule is `DISABLED`, so
   nothing runs unless someone triggers it.
