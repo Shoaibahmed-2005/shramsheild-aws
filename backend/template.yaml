@@ -1,0 +1,153 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: ShramShield - Outdoor Heat Safety Screening System (ap-south-1)
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures:
+      - x86_64
+    Timeout: 30
+    MemorySize: 512
+    Layers:
+      - !Ref DepsLayer
+
+Parameters:
+  DemoKey:
+    Type: String
+    NoEcho: true
+    Description: Secret key required for mutating API requests (x-demo-key)
+  TelegramBotToken:
+    Type: String
+    NoEcho: true
+    Default: "not-set"
+    Description: Telegram bot token from BotFather
+  TelegramWebhookSecret:
+    Type: String
+    NoEcho: true
+    Default: "not-set"
+    Description: Secret token for Telegram webhook validation
+  PollyRegion:
+    Type: String
+    Default: "ap-south-1"
+    Description: AWS region for Amazon Polly voice synthesis
+  DashboardUrl:
+    Type: String
+    Default: ""
+    Description: Frontend dashboard URL for alert links
+  WeatherCacheSeconds:
+    Type: String
+    Default: "1200"
+    Description: Cache TTL in seconds for weather plan responses
+
+Resources:
+  DataTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: PK
+          AttributeType: S
+        - AttributeName: SK
+          AttributeType: S
+      KeySchema:
+        - AttributeName: PK
+          KeyType: HASH
+        - AttributeName: SK
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: ttl
+        Enabled: true
+
+  VoiceBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      LifecycleConfiguration:
+        Rules:
+          - Status: Enabled
+            ExpirationInDays: 7
+
+  DepsLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      ContentUri: build/layer
+      CompatibleRuntimes:
+        - python3.12
+      CompatibleArchitectures:
+        - x86_64
+      RetentionPolicy: Delete
+
+  HttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - OPTIONS
+        AllowHeaders:
+          - content-type
+          - x-demo-key
+        ExposeHeaders:
+          - x-cache
+        MaxAge: 600
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 20
+        ThrottlingRateLimit: 10
+
+  ApiFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: api.handler
+      CodeUri: src/
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DataTable
+          VOICE_BUCKET: !Ref VoiceBucket
+          DEMO_KEY: !Ref DemoKey
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          TELEGRAM_WEBHOOK_SECRET: !Ref TelegramWebhookSecret
+          POLLY_REGION: !Ref PollyRegion
+          POLLY_VOICE_ID: Kajal
+          POLLY_ENGINE: neural
+          DASHBOARD_URL: !Ref DashboardUrl
+          WEATHER_CACHE_SECONDS: !Ref WeatherCacheSeconds
+          STATE_MACHINE_ARN: ""
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DataTable
+      Events:
+        ProxyRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /{proxy+}
+            Method: ANY
+        RootRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HttpApi
+            Path: /
+            Method: ANY
+
+Outputs:
+  ApiUrl:
+    Description: Base URL of the HTTP API without trailing slash
+    Value: !Sub "https://${HttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Description: DynamoDB single table name
+    Value: !Ref DataTable
+  VoiceBucketName:
+    Description: Private S3 voice bucket name
+    Value: !Ref VoiceBucket

@@ -1,0 +1,33 @@
+# SAM CLI configuration file (example template)
+# Copy this file to samconfig.toml and fill in your real DEMO_KEY.
+# NEVER commit samconfig.toml to version control.
+version = 0.1
+
+[default]
+[default.global.parameters]
+stack_name = "shramshield"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+s3_prefix = "shramshield"
+region = "ap-south-1"
+parameter_overrides = "DemoKey=\"CHANGE_ME\" TelegramBotToken=\"not-set\" TelegramWebhookSecret=\"not-set\" PollyRegion=\"ap-south-1\" DashboardUrl=\"\" WeatherCacheSeconds=\"1200\""
+image_repositories = []
+
+[default.package.parameters]
+resolve_s3 = true
+
+[default.sync.parameters]
+watch = true
+
+[default.local_start_api.parameters]
+warm_containers = "EAGER"
+
+[default.local_start_lambda.parameters]
+warm_containers = "EAGER"
