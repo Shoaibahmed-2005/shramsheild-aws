@@ -39,6 +39,13 @@ Parameters:
     Type: String
     Default: "1200"
     Description: Cache TTL in seconds for weather plan responses
+  ScheduleState:
+    Type: String
+    Default: "DISABLED"
+    AllowedValues:
+      - "ENABLED"
+      - "DISABLED"
+    Description: Schedule state for morning alert cron (default DISABLED)
 
 Resources:
   DataTable:
@@ -123,10 +130,19 @@ Resources:
           POLLY_ENGINE: neural
           DASHBOARD_URL: !Ref DashboardUrl
           WEATHER_CACHE_SECONDS: !Ref WeatherCacheSeconds
-          STATE_MACHINE_ARN: ""
+          STATE_MACHINE_ARN: !Ref EscalationStateMachine
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref DataTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref EscalationStateMachine
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+              Resource: "*"
       Events:
         ProxyRoute:
           Type: HttpApi
@@ -141,6 +157,91 @@ Resources:
             Path: /
             Method: ANY
 
+  NotifyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: notify.handler
+      CodeUri: src/
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DataTable
+          VOICE_BUCKET: !Ref VoiceBucket
+          TELEGRAM_BOT_TOKEN: !Ref TelegramBotToken
+          POLLY_REGION: !Ref PollyRegion
+          POLLY_VOICE_ID: Kajal
+          POLLY_ENGINE: neural
+          DASHBOARD_URL: !Ref DashboardUrl
+          WEATHER_CACHE_SECONDS: !Ref WeatherCacheSeconds
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DataTable
+        - S3CrudPolicy:
+            BucketName: !Ref VoiceBucket
+        - Statement:
+            - Effect: Allow
+              Action:
+                - polly:SynthesizeSpeech
+              Resource: "*"
+            - Effect: Allow
+              Action:
+                - states:SendTaskSuccess
+                - states:SendTaskFailure
+              Resource: "*"
+
+  RecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: record.handler
+      CodeUri: src/
+      Timeout: 30
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DataTable
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DataTable
+
+  SchedulerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: scheduler.handler
+      CodeUri: src/
+      Timeout: 60
+      Environment:
+        Variables:
+          TABLE_NAME: !Ref DataTable
+          STATE_MACHINE_ARN: !Ref EscalationStateMachine
+          WEATHER_CACHE_SECONDS: !Ref WeatherCacheSeconds
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref DataTable
+        - Statement:
+            - Effect: Allow
+              Action:
+                - states:StartExecution
+              Resource: !Ref EscalationStateMachine
+      Events:
+        MorningSchedule:
+          Type: ScheduleV2
+          Properties:
+            ScheduleExpression: "cron(30 0 * * ? *)"
+            State: !Ref ScheduleState
+
+  EscalationStateMachine:
+    Type: AWS::Serverless::StateMachine
+    Properties:
+      Type: STANDARD
+      DefinitionUri: statemachine/escalation.asl.json
+      DefinitionSubstitutions:
+        NotifyFunctionArn: !GetAtt NotifyFunction.Arn
+        RecordFunctionArn: !GetAtt RecordFunction.Arn
+      Policies:
+        - LambdaInvokePolicy:
+            FunctionName: !Ref NotifyFunction
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RecordFunction
+
 Outputs:
   ApiUrl:
     Description: Base URL of the HTTP API without trailing slash
@@ -151,3 +252,6 @@ Outputs:
   VoiceBucketName:
     Description: Private S3 voice bucket name
     Value: !Ref VoiceBucket
+  EscalationStateMachineArn:
+    Description: ARN of the escalation state machine
+    Value: !Ref EscalationStateMachine

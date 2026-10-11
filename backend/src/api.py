@@ -13,12 +13,14 @@ import re
 import string
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
+import hmac
+
 try:
     from common.http import error, json_response, require_demo_key
-    from common import db
+    from common import db, runs, runs_start, telegram
 except ImportError:
     from src.common.http import error, json_response, require_demo_key
-    from src.common import db
+    from src.common import db, runs, runs_start, telegram
 
 logger = logging.getLogger("api")
 logger.setLevel(logging.INFO)
@@ -262,8 +264,202 @@ def handle_get_site_plan(event: Dict[str, Any], site_id: str) -> Dict[str, Any]:
     return json_response(200, plan, extra_headers={"x-cache": "MISS"})
 
 
-def handle_unimplemented(event: Dict[str, Any], *args: Any) -> Dict[str, Any]:
-    return error("not_found", "not implemented yet")
+def handle_start_site_run(event: Dict[str, Any], site_id: str) -> Dict[str, Any]:
+    """POST /sites/{site_id}/run - Trigger a workflow run for a site."""
+    if not _SITE_ID_RE.match(site_id):
+        return error("bad_request", f"site_id '{site_id}' must match ^[a-z0-9-]{{3,20}}$")
+
+    table = get_table()
+    site = db.get_site(table, site_id)
+    if not site:
+        return error("not_found", f"Site '{site_id}' not found")
+
+    ack_timeout = None
+    raw_body = event.get("body")
+    if raw_body:
+        try:
+            body_json = json.loads(raw_body)
+            if isinstance(body_json, dict) and "ack_timeout_seconds" in body_json:
+                ack_timeout = body_json["ack_timeout_seconds"]
+                if not isinstance(ack_timeout, int) or not (30 <= ack_timeout <= 3600):
+                    return error("bad_request", "ack_timeout_seconds must be an integer between 30 and 3600")
+        except Exception:
+            return error("bad_request", "Invalid JSON body")
+
+    status_code, result = runs_start.start_run_for_site(table, site, ack_timeout_seconds=ack_timeout)
+    if status_code == 202:
+        return json_response(202, result)
+    return result
+
+
+def handle_get_latest_site_run(event: Dict[str, Any], site_id: str) -> Dict[str, Any]:
+    """GET /sites/{site_id}/runs/latest - Fetch latest run for a site."""
+    if not _SITE_ID_RE.match(site_id):
+        return error("bad_request", f"site_id '{site_id}' must match ^[a-z0-9-]{{3,20}}$")
+
+    table = get_table()
+    site = db.get_site(table, site_id)
+    if not site:
+        return error("not_found", f"Site '{site_id}' not found")
+
+    latest_run = runs.get_latest_run(table, site_id)
+    if not latest_run:
+        return error("not_found", f"No runs found for site '{site_id}'")
+
+    return json_response(200, latest_run)
+
+
+def handle_get_run(event: Dict[str, Any], run_id: str) -> Dict[str, Any]:
+    """GET /runs/{run_id} - Fetch run details by run_id."""
+    table = get_table()
+    run = runs.get_run(table, run_id)
+    if not run:
+        return error("not_found", f"Run '{run_id}' not found")
+
+    return json_response(200, run)
+
+
+def handle_ack(event: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /ack - Acknowledge a run via web or API call."""
+    raw_body = event.get("body")
+    if not raw_body:
+        return error("bad_request", "Missing request body")
+
+    try:
+        body_json = json.loads(raw_body)
+    except Exception:
+        return error("bad_request", "Invalid JSON body")
+
+    if not isinstance(body_json, dict):
+        return error("bad_request", "Request body must be a JSON object")
+
+    run_id = body_json.get("run_id")
+    if not run_id or not isinstance(run_id, str):
+        return error("bad_request", "Missing or invalid run_id")
+
+    by_name = body_json.get("by")
+    if by_name is not None and not isinstance(by_name, str):
+        return error("bad_request", "Field 'by' must be a string if provided")
+
+    table = get_table()
+    run = runs.get_run(table, run_id)
+    if not run:
+        return error("not_found", f"Run '{run_id}' not found")
+
+    if run.get("status") in runs.FINAL_STATUSES:
+        return error("conflict", f"Run '{run_id}' is already closed")
+
+    active_stage = run.get("active_stage")
+    ok, updated = runs.close_run_ack(table, run_id, by=by_name or "Supervisor", via="web")
+    if not ok:
+        return error("conflict", f"Run '{run_id}' is already closed")
+
+    # Send task success to active stage token
+    stage = active_stage or "primary"
+    token = runs.get_token(table, run_id, stage)
+    if not token and stage == "primary":
+        token = runs.get_token(table, run_id, "backup")
+
+    if token:
+        try:
+            import boto3
+
+            region = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "ap-south-1"))
+            sfn = boto3.client("stepfunctions", region_name=region)
+            sfn.send_task_success(taskToken=token, output="{}")
+        except Exception as exc:
+            logger.info("send_task_success ignored exception during web ack: %s", exc)
+
+    return json_response(200, {"ok": True, "status": "ACKNOWLEDGED"})
+
+
+def handle_telegram_webhook(event: Dict[str, Any]) -> Dict[str, Any]:
+    """POST /telegram/webhook - Handle incoming Telegram updates."""
+    expected_secret = os.environ.get("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    raw_headers = event.get("headers") or {}
+    headers = {str(k).lower(): str(v) for k, v in raw_headers.items()}
+    incoming_secret = headers.get("x-telegram-bot-api-secret-token", "").strip()
+
+    if (
+        not expected_secret
+        or expected_secret == "not-set"
+        or not incoming_secret
+        or not hmac.compare_digest(incoming_secret, expected_secret)
+    ):
+        return error("unauthorized", "Unauthorized: invalid or missing telegram webhook secret")
+
+    raw_body = event.get("body") or "{}"
+    try:
+        update = json.loads(raw_body)
+    except Exception as exc:
+        logger.error("Failed to parse Telegram webhook JSON: %s", exc)
+        return json_response(200, {"ok": True})
+
+    try:
+        table = get_table()
+
+        # Handle callback query (inline acknowledge button)
+        if "callback_query" in update:
+            cb = update["callback_query"]
+            cb_id = cb.get("id")
+            cb_data = cb.get("data", "")
+            from_user = cb.get("from") or {}
+            by_name = from_user.get("first_name") or from_user.get("username") or "Supervisor"
+
+            if cb_data.startswith("ack:"):
+                run_id = cb_data[4:].strip()
+                run = runs.get_run(table, run_id)
+                if not run or run.get("status") in runs.FINAL_STATUSES:
+                    try:
+                        telegram.answer_callback(cb_id, text="Already closed")
+                    except Exception as e:
+                        logger.warning("Error answering callback: %s", e)
+                else:
+                    active_stage = run.get("active_stage")
+                    ok, _ = runs.close_run_ack(table, run_id, by=by_name, via="telegram")
+                    if ok:
+                        stage = active_stage or "primary"
+                        token = runs.get_token(table, run_id, stage)
+                        if not token and stage == "primary":
+                            token = runs.get_token(table, run_id, "backup")
+                        if token:
+                            try:
+                                import boto3
+
+                                region = os.environ.get("AWS_REGION", os.environ.get("AWS_DEFAULT_REGION", "ap-south-1"))
+                                sfn = boto3.client("stepfunctions", region_name=region)
+                                sfn.send_task_success(taskToken=token, output="{}")
+                            except Exception as sfn_exc:
+                                logger.warning("send_task_success ignored exception during telegram ack: %s", sfn_exc)
+
+                        try:
+                            telegram.answer_callback(cb_id, text="Acknowledged ✅")
+                        except Exception as e:
+                            logger.warning("Error answering callback: %s", e)
+                    else:
+                        try:
+                            telegram.answer_callback(cb_id, text="Already closed")
+                        except Exception as e:
+                            logger.warning("Error answering callback: %s", e)
+
+        # Handle /start message
+        elif "message" in update:
+            msg = update["message"]
+            text = (msg.get("text") or "").strip()
+            chat = msg.get("chat") or {}
+            chat_id = chat.get("id")
+
+            if text == "/start" and chat_id:
+                reply_text = f"Your chat id is {chat_id}. Give it to the project admin."
+                try:
+                    telegram.send_message(chat_id, reply_text)
+                except Exception as e:
+                    logger.warning("Error replying to /start: %s", e)
+
+    except Exception as exc:
+        logger.error("Internal error handling Telegram update: %s", exc)
+
+    return json_response(200, {"ok": True})
 
 
 # ---------------------------------------------------------------------------
@@ -278,12 +474,12 @@ router.add("POST", r"^/sites/?$", handle_create_site, require_key=True)
 router.add("GET", r"^/sites/([a-z0-9-]+)/?$", handle_get_site, require_key=False)
 router.add("GET", r"^/sites/([a-z0-9-]+)/plan/?$", handle_get_site_plan, require_key=False)
 
-# Workflow routes (to be implemented in P2.3)
-router.add("POST", r"^/sites/([a-zA-Z0-9_-]+)/run/?$", handle_unimplemented, require_key=True)
-router.add("GET", r"^/sites/([a-zA-Z0-9_-]+)/runs/latest/?$", handle_unimplemented, require_key=False)
-router.add("GET", r"^/runs/([a-zA-Z0-9_-]+)/?$", handle_unimplemented, require_key=False)
-router.add("POST", r"^/ack/?$", handle_unimplemented, require_key=True)
-router.add("POST", r"^/telegram/webhook/?$", handle_unimplemented, require_key=False)
+# Workflow routes
+router.add("POST", r"^/sites/([a-z0-9-]+)/run/?$", handle_start_site_run, require_key=True)
+router.add("GET", r"^/sites/([a-z0-9-]+)/runs/latest/?$", handle_get_latest_site_run, require_key=False)
+router.add("GET", r"^/runs/([a-zA-Z0-9_-]+)/?$", handle_get_run, require_key=False)
+router.add("POST", r"^/ack/?$", handle_ack, require_key=True)
+router.add("POST", r"^/telegram/webhook/?$", handle_telegram_webhook, require_key=False)
 
 
 def handler(event: Dict[str, Any], context: Any = None) -> Dict[str, Any]:

@@ -52,6 +52,47 @@ class FakeDynamoDBTable:
                 res.append(item.copy())
         return {"Items": res}
 
+    def update_item(
+        self,
+        Key: Dict[str, Any],
+        UpdateExpression: str,
+        ConditionExpression: Optional[str] = None,
+        ExpressionAttributeNames: Optional[Dict[str, str]] = None,
+        ExpressionAttributeValues: Optional[Dict[str, Any]] = None,
+    ) -> Dict[str, Any]:
+        pk = Key.get("PK")
+        sk = Key.get("SK")
+        item = self.items.get((pk, sk))
+        if not item:
+            item = {"PK": pk, "SK": sk}
+            self.items[(pk, sk)] = item
+
+        vals = ExpressionAttributeValues or {}
+
+        # Evaluate condition expression
+        if ConditionExpression:
+            current_status = item.get("status")
+            if ":allowed_0" in vals:
+                allowed = [v for k, v in vals.items() if k.startswith(":allowed_")]
+                if current_status not in allowed:
+                    from botocore.exceptions import ClientError
+                    raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem")
+            elif ":ack" in vals:
+                if current_status in ("ACKNOWLEDGED", "UNACKNOWLEDGED", "FAILED"):
+                    from botocore.exceptions import ClientError
+                    raise ClientError({"Error": {"Code": "ConditionalCheckFailedException"}}, "UpdateItem")
+
+        # Apply updates
+        if ":d" in vals:
+            item["data"] = vals[":d"]
+        if ":s" in vals:
+            item["status"] = vals[":s"]
+        if ":ev" in vals:
+            if "data" in item:
+                item["data"]["events"] = vals[":ev"]
+
+        return {"Attributes": item.copy()}
+
 
 def make_event(
     method: str = "GET",
@@ -426,3 +467,399 @@ def test_get_site_plan_flow(mock_dynamodb, monkeypatch):
     err_body = json.loads(resp["body"])
     assert err_body["error"]["code"] == "upstream_error"
     assert err_body["error"]["message"] == "weather service unavailable"
+
+
+# ---------------------------------------------------------------------------
+# P2.3 Workflow, Escalation, Telegram, Voice, and State Machine Tests
+# ---------------------------------------------------------------------------
+
+
+def test_asl_json_valid_graph():
+    """Verify that escalation.asl.json parses and every Next/Catch target exists."""
+    asl_file = backend_dir / "statemachine" / "escalation.asl.json"
+    assert asl_file.exists(), f"Missing ASL file at {asl_file}"
+
+    with open(asl_file, "r", encoding="utf-8") as f:
+        asl_data = json.load(f)
+
+    states = asl_data.get("States", {})
+    required_states = [
+        "NotifyPrimary",
+        "RecordEscalated",
+        "NotifyBackup",
+        "RecordUnacknowledged",
+        "RecordFailed",
+        "Done",
+    ]
+    for req_st in required_states:
+        assert req_st in states, f"Required state '{req_st}' missing from ASL"
+
+    assert states["Done"].get("Type") == "Succeed"
+
+    # Verify all Next and Catch targets exist
+    for state_name, state_def in states.items():
+        if "Next" in state_def:
+            next_target = state_def["Next"]
+            assert next_target in states, f"State '{state_name}' Next target '{next_target}' does not exist"
+
+        for catch in state_def.get("Catch", []):
+            catch_target = catch.get("Next")
+            assert catch_target in states, f"State '{state_name}' Catch target '{catch_target}' does not exist"
+
+
+def test_no_secrets_in_tracked_files():
+    """Verify that no file in backend/ contains bot token strings matching the regex."""
+    import re
+    token_re = re.compile(r"\d{8,10}:[A-Za-z0-9_-]{35}")
+
+    for root, dirs, files in os.walk(backend_dir):
+        # Ignore virtual envs, caches, build
+        if any(ign in root for ign in [".venv", "venv", "__pycache__", ".pytest_cache", "build"]):
+            continue
+        for file in files:
+            if file.endswith((".py", ".yaml", ".yml", ".json", ".md")):
+                file_path = os.path.join(root, file)
+                with open(file_path, "r", encoding="utf-8", errors="ignore") as f:
+                    content = f.read()
+                    matches = token_re.findall(content)
+                    assert not matches, f"Secret token pattern found in {file_path}: {matches}"
+
+
+def test_notify_primary_happy_path(mock_dynamodb, monkeypatch):
+    """Notify primary creates events, stores token, calls telegram and voice."""
+    import notify
+    from common import runs, telegram, voice
+
+    site = sample_site(
+        site_id="chn-01",
+        supervisor={"name": "Kavitha", "telegram_chat_id": 12345678},
+        language="hi",
+        ack_timeout_seconds=600,
+    )
+    db.put_site(mock_dynamodb, site)
+
+    plan_obj = {
+        "plan_id": "chn-01_2026-10-11",
+        "site_id": "chn-01",
+        "messages": {"hi": "आज गर्मी का खतरा मध्यम रहेगा।", "en": "Moderate heat today."},
+        "disclaimer": "Screening advice only.",
+        "summary": {"peak_wbgt_c": 31.0, "peak_hour": 14},
+    }
+    db.put_cached_plan(mock_dynamodb, "chn-01", "2026-10-11", plan_obj, ttl_seconds=1200)
+
+    run_id = "chn-01_20261011T003000"
+    runs.create_run(mock_dynamodb, run_id, "chn-01", "chn-01_2026-10-11")
+
+    # Fakes
+    telegram_calls = []
+
+    def fake_send_message(chat_id, text, reply_markup=None):
+        telegram_calls.append({"type": "msg", "chat_id": chat_id, "text": text, "markup": reply_markup})
+        return {"ok": True}
+
+    def fake_send_audio(chat_id, audio_url, caption=None, title=None):
+        telegram_calls.append({"type": "audio", "chat_id": chat_id, "audio_url": audio_url})
+        return {"ok": True}
+
+    def fake_synthesize(text, r_id, lang="hi"):
+        return f"https://mock-s3.amazonaws.com/{r_id}_{lang}.mp3"
+
+    monkeypatch.setattr(telegram, "send_message", fake_send_message)
+    monkeypatch.setattr(telegram, "send_audio", fake_send_audio)
+    monkeypatch.setattr(voice, "synthesize", fake_synthesize)
+
+    # Invoke notify handler
+    event = {
+        "action": "notify",
+        "stage": "primary",
+        "run_id": run_id,
+        "site_id": "chn-01",
+        "token": "fake-task-token-primary-12345",
+    }
+    result = notify.handler(event)
+    assert result.get("status") == "waiting_ack"
+
+    # Verify task token stored
+    stored_token = runs.get_token(mock_dynamodb, run_id, "primary")
+    assert stored_token == "fake-task-token-primary-12345"
+
+    # Verify run updated
+    run_record = runs.get_run(mock_dynamodb, run_id)
+    assert run_record["status"] == "WAITING_ACK"
+    assert run_record["active_stage"] == "primary"
+    assert run_record["voice_url"] == f"https://mock-s3.amazonaws.com/{run_id}_hi.mp3"
+
+    # Verify events
+    steps = [e["step"] for e in run_record["events"]]
+    assert "voice_ready" in steps
+    assert "telegram_sent" in steps
+    assert "notified_primary" in steps
+
+    # Verify telegram message sent with inline acknowledge button
+    assert len(telegram_calls) == 2
+    msg_call = telegram_calls[0]
+    assert msg_call["chat_id"] == 12345678
+    assert f"ack:{run_id}" in json.dumps(msg_call["markup"])
+
+
+def test_ack_closes_run_and_double_ack_returns_409(mock_dynamodb, monkeypatch):
+    """POST /ack closes the run; subsequent ack returns 409 conflict."""
+    from common import runs
+
+    run_id = "chn-01_20261011T003000"
+    runs.create_run(mock_dynamodb, run_id, "chn-01", "chn-01_2026-10-11")
+    runs.save_token(mock_dynamodb, run_id, "primary", "primary-token-abc")
+    runs.update_run_stage(mock_dynamodb, run_id, "WAITING_ACK", "primary", "2026-10-11T01:00:00Z")
+
+    sfn_success_called = []
+
+    class MockSfnClient:
+        def send_task_success(self, taskToken, output):
+            sfn_success_called.append(taskToken)
+            return {}
+
+    import boto3
+    monkeypatch.setattr(boto3, "client", lambda service, **kwargs: MockSfnClient() if service == "stepfunctions" else None)
+
+    # 1. First ack -> 200
+    ack_event = make_event(
+        "POST",
+        "/ack",
+        headers={"x-demo-key": "test-secret-key-12345"},
+        body=json.dumps({"run_id": run_id, "by": "Kavitha"}),
+    )
+    resp = api.handler(ack_event)
+    assert resp["statusCode"] == 200
+    assert json.loads(resp["body"]) == {"ok": True, "status": "ACKNOWLEDGED"}
+    assert sfn_success_called == ["primary-token-abc"]
+
+    # Verify run state in DynamoDB
+    run = runs.get_run(mock_dynamodb, run_id)
+    assert run["status"] == "ACKNOWLEDGED"
+    assert run["acked_by"] == "Kavitha"
+    assert run["acked_via"] == "web"
+    assert run["active_stage"] is None
+
+    # 2. Double ack -> 409 conflict
+    resp2 = api.handler(ack_event)
+    assert resp2["statusCode"] == 409
+    assert json.loads(resp2["body"])["error"]["code"] == "conflict"
+
+
+def test_ack_after_timeout_race_closes_via_backup(mock_dynamodb, monkeypatch):
+    """Ack when status is ESCALATED closes run and sends success with backup token."""
+    from common import runs
+
+    run_id = "del-01_20261011T003000"
+    runs.create_run(mock_dynamodb, run_id, "del-01", "del-01_2026-10-11")
+    runs.save_token(mock_dynamodb, run_id, "backup", "backup-token-xyz")
+    runs.update_run_stage(mock_dynamodb, run_id, "ESCALATED", "backup", "2026-10-11T01:00:00Z")
+
+    sfn_success_called = []
+
+    class MockSfnClient:
+        def send_task_success(self, taskToken, output):
+            sfn_success_called.append(taskToken)
+            return {}
+
+    import boto3
+    monkeypatch.setattr(boto3, "client", lambda service, **kwargs: MockSfnClient() if service == "stepfunctions" else None)
+
+    ack_event = make_event(
+        "POST",
+        "/ack",
+        headers={"x-demo-key": "test-secret-key-12345"},
+        body=json.dumps({"run_id": run_id, "by": "BackupPerson"}),
+    )
+    resp = api.handler(ack_event)
+    assert resp["statusCode"] == 200
+    assert sfn_success_called == ["backup-token-xyz"]
+
+    run = runs.get_run(mock_dynamodb, run_id)
+    assert run["status"] == "ACKNOWLEDGED"
+    assert run["active_stage"] is None
+
+
+def test_record_escalate_skipped_when_already_acknowledged(mock_dynamodb):
+    """record.py returns {"skipped": True} when run is already ACKNOWLEDGED."""
+    from common import runs
+    import record
+
+    run_id = "chn-01_closed"
+    runs.create_run(mock_dynamodb, run_id, "chn-01", "chn-01_2026-10-11")
+    runs.close_run_ack(mock_dynamodb, run_id, by="Admin", via="web")
+
+    event = {"action": "escalate", "run_id": run_id}
+    res = record.handler(event)
+    assert res == {"skipped": True}
+
+    # Verify status did not change
+    run = runs.get_run(mock_dynamodb, run_id)
+    assert run["status"] == "ACKNOWLEDGED"
+
+
+def test_telegram_webhook_secret_verification_and_start(mock_dynamodb, monkeypatch):
+    """POST /telegram/webhook rejects invalid secrets and handles /start."""
+    from common import telegram
+
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "super-secret-telegram-token")
+
+    telegram_sent = []
+
+    def fake_send_message(chat_id, text, reply_markup=None):
+        telegram_sent.append((chat_id, text))
+        return {"ok": True}
+
+    monkeypatch.setattr(telegram, "send_message", fake_send_message)
+
+    # 1. Missing secret header -> 401
+    resp = api.handler(make_event("POST", "/telegram/webhook", body="{}"))
+    assert resp["statusCode"] == 401
+
+    # 2. Wrong secret header -> 401
+    resp = api.handler(
+        make_event(
+            "POST",
+            "/telegram/webhook",
+            headers={"X-Telegram-Bot-Api-Secret-Token": "wrong-secret"},
+            body="{}",
+        )
+    )
+    assert resp["statusCode"] == 401
+
+    # 3. Valid secret with /start -> 200, replies with chat id
+    start_payload = {
+        "message": {
+            "message_id": 1,
+            "text": "/start",
+            "chat": {"id": 888777, "type": "private"},
+            "from": {"id": 888777, "first_name": "TestUser"},
+        }
+    }
+    resp = api.handler(
+        make_event(
+            "POST",
+            "/telegram/webhook",
+            headers={"X-Telegram-Bot-Api-Secret-Token": "super-secret-telegram-token"},
+            body=json.dumps(start_payload),
+        )
+    )
+    assert resp["statusCode"] == 200
+    assert len(telegram_sent) == 1
+    assert telegram_sent[0][0] == 888777
+    assert "888777" in telegram_sent[0][1]
+
+
+def test_telegram_webhook_callback_ack(mock_dynamodb, monkeypatch):
+    """POST /telegram/webhook acknowledges run via inline button callback."""
+    from common import runs, telegram
+
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "super-secret-telegram-token")
+
+    run_id = "chn-01_tg_ack"
+    runs.create_run(mock_dynamodb, run_id, "chn-01", "chn-01_2026-10-11")
+    runs.save_token(mock_dynamodb, run_id, "primary", "token-for-sfn")
+    runs.update_run_stage(mock_dynamodb, run_id, "WAITING_ACK", "primary", "2026-10-11T01:00:00Z")
+
+    answered_callbacks = []
+
+    def fake_answer_callback(cb_id, text=None):
+        answered_callbacks.append((cb_id, text))
+        return {"ok": True}
+
+    monkeypatch.setattr(telegram, "answer_callback", fake_answer_callback)
+
+    cb_payload = {
+        "callback_query": {
+            "id": "cb_query_123",
+            "from": {"first_name": "Kavitha", "id": 12345},
+            "data": f"ack:{run_id}",
+        }
+    }
+
+    # 1. First click: Acknowledged ✅
+    resp = api.handler(
+        make_event(
+            "POST",
+            "/telegram/webhook",
+            headers={"X-Telegram-Bot-Api-Secret-Token": "super-secret-telegram-token"},
+            body=json.dumps(cb_payload),
+        )
+    )
+    assert resp["statusCode"] == 200
+    assert ("cb_query_123", "Acknowledged ✅") in answered_callbacks
+
+    run = runs.get_run(mock_dynamodb, run_id)
+    assert run["status"] == "ACKNOWLEDGED"
+    assert run["acked_by"] == "Kavitha"
+    assert run["acked_via"] == "telegram"
+
+    # 2. Second click: Already closed
+    resp2 = api.handler(
+        make_event(
+            "POST",
+            "/telegram/webhook",
+            headers={"X-Telegram-Bot-Api-Secret-Token": "super-secret-telegram-token"},
+            body=json.dumps(cb_payload),
+        )
+    )
+    assert resp2["statusCode"] == 200
+    assert ("cb_query_123", "Already closed") in answered_callbacks
+
+
+def test_run_start_conflict_when_active(mock_dynamodb, monkeypatch):
+    """POST /sites/{site_id}/run returns 409 conflict when a run is active (< 1 hour)."""
+    from common import runs
+
+    site = sample_site(site_id="chn-01")
+    db.put_site(mock_dynamodb, site)
+
+    active_run_id = "chn-01_active"
+    runs.create_run(mock_dynamodb, active_run_id, "chn-01", "chn-01_2026-10-11")
+    runs.update_run_stage(mock_dynamodb, active_run_id, "WAITING_ACK", "primary", "2026-10-11T01:00:00Z")
+
+    resp = api.handler(
+        make_event(
+            "POST",
+            "/sites/chn-01/run",
+            headers={"x-demo-key": "test-secret-key-12345"},
+            body=json.dumps({"ack_timeout_seconds": 60}),
+        )
+    )
+    assert resp["statusCode"] == 409
+    err = json.loads(resp["body"])
+    assert err["error"]["code"] == "conflict"
+    assert "a run is already active" in err["error"]["message"]
+
+
+def test_get_run_and_latest_run(mock_dynamodb):
+    """GET /sites/{site_id}/runs/latest and GET /runs/{run_id} return run or 404."""
+    from common import runs
+
+    site = sample_site(site_id="kol-01")
+    db.put_site(mock_dynamodb, site)
+
+    # 404 when no runs exist
+    resp = api.handler(make_event("GET", "/sites/kol-01/runs/latest"))
+    assert resp["statusCode"] == 404
+
+    run_id = "kol-01_20261011T004000"
+    runs.create_run(mock_dynamodb, run_id, "kol-01", "kol-01_2026-10-11", initial_event_detail="peak WBGT 31.0")
+
+    # Latest run
+    resp = api.handler(make_event("GET", "/sites/kol-01/runs/latest"))
+    assert resp["statusCode"] == 200
+    data = json.loads(resp["body"])
+    assert data["run_id"] == run_id
+
+    # Get by run_id
+    resp = api.handler(make_event("GET", f"/runs/{run_id}"))
+    assert resp["statusCode"] == 200
+    data = json.loads(resp["body"])
+    assert data["run_id"] == run_id
+    assert data["status"] == "STARTED"
+
+    # Nonexistent run -> 404
+    resp = api.handler(make_event("GET", "/runs/nonexistent-run"))
+    assert resp["statusCode"] == 404
+

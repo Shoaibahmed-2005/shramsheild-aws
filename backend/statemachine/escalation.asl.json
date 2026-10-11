@@ -1,0 +1,112 @@
+{
+  "Comment": "ShramShield Escalation Workflow - Heat safety screening notification with primary acknowledgement and backup escalation",
+  "StartAt": "NotifyPrimary",
+  "States": {
+    "NotifyPrimary": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${NotifyFunctionArn}",
+        "Payload": {
+          "action": "notify",
+          "stage": "primary",
+          "run_id.$": "$.run_id",
+          "site_id.$": "$.site_id",
+          "token.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.ack_timeout_seconds",
+      "ResultPath": "$.primary_result",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.primary_timeout",
+          "Next": "RecordEscalated"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "RecordFailed"
+        }
+      ],
+      "Next": "Done"
+    },
+    "RecordEscalated": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${RecordFunctionArn}",
+        "Payload": {
+          "action": "escalate",
+          "run_id.$": "$.run_id"
+        }
+      },
+      "ResultPath": null,
+      "Next": "NotifyBackup"
+    },
+    "NotifyBackup": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke.waitForTaskToken",
+      "Parameters": {
+        "FunctionName": "${NotifyFunctionArn}",
+        "Payload": {
+          "action": "notify",
+          "stage": "backup",
+          "run_id.$": "$.run_id",
+          "site_id.$": "$.site_id",
+          "token.$": "$$.Task.Token"
+        }
+      },
+      "TimeoutSecondsPath": "$.ack_timeout_seconds",
+      "ResultPath": "$.backup_result",
+      "Catch": [
+        {
+          "ErrorEquals": ["States.Timeout"],
+          "ResultPath": "$.backup_timeout",
+          "Next": "RecordUnacknowledged"
+        },
+        {
+          "ErrorEquals": ["NoBackup"],
+          "ResultPath": "$.backup_missing",
+          "Next": "RecordUnacknowledged"
+        },
+        {
+          "ErrorEquals": ["States.ALL"],
+          "ResultPath": "$.error",
+          "Next": "RecordFailed"
+        }
+      ],
+      "Next": "Done"
+    },
+    "RecordUnacknowledged": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${RecordFunctionArn}",
+        "Payload": {
+          "action": "unacknowledge",
+          "run_id.$": "$.run_id"
+        }
+      },
+      "ResultPath": null,
+      "Next": "Done"
+    },
+    "RecordFailed": {
+      "Type": "Task",
+      "Resource": "arn:aws:states:::lambda:invoke",
+      "Parameters": {
+        "FunctionName": "${RecordFunctionArn}",
+        "Payload": {
+          "action": "fail",
+          "run_id.$": "$.run_id",
+          "error.$": "$.error"
+        }
+      },
+      "ResultPath": null,
+      "Next": "Done"
+    },
+    "Done": {
+      "Type": "Succeed"
+    }
+  }
+}
