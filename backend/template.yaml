@@ -242,6 +242,29 @@ Resources:
         - LambdaInvokePolicy:
             FunctionName: !Ref RecordFunction
 
+  # Visible signal in the CloudWatch console when an escalation workflow fails.
+  # No SNS action is attached on purpose: no email or subscription is wanted for
+  # the demo, and CloudWatch allows 10 alarms at no cost.
+  EscalationFailedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmName: !Sub "${AWS::StackName}-escalation-executions-failed"
+      AlarmDescription: >-
+        Fires when one or more escalation state machine executions fail in a
+        five minute window. Investigate in the Step Functions console.
+      Namespace: AWS/States
+      MetricName: ExecutionsFailed
+      Dimensions:
+        - Name: StateMachineArn
+          Value: !Ref EscalationStateMachine
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 0
+      ComparisonOperator: GreaterThanThreshold
+      # No executions means no datapoints, which must not raise the alarm.
+      TreatMissingData: notBreaching
+
 Outputs:
   ApiUrl:
     Description: Base URL of the HTTP API without trailing slash

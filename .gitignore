@@ -15,6 +15,7 @@ dist/
 backend/build/
 backend/samconfig.toml
 backend/src/shramshield_core/
+backend/.amplify_app
 
 # Secrets and local env
 frontend/.env.local

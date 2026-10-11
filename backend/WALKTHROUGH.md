@@ -31,7 +31,7 @@ The backend and cloud infrastructure for ShramShield (**Tasks P2.1, P2.2, and P2
    - High performance, low latency endpoint with CORS enabled.
    - Throttling limits: 20 burst / 10 rate.
    - Constant-time HMAC authentication (`x-demo-key`) for mutating endpoints.
-2. **Lambda Functions (Python 3.12 on AWS Graviton/x86):**
+2. **Lambda Functions (Python 3.12 on x86_64):**
    - `ApiFunction`: High-speed router for sites, plans, runs, and Telegram webhooks.
    - `NotifyFunction`: Invoked by Step Functions with task tokens. Synthesizes Hindi voice, saves task tokens, sends Telegram messages and audio.
    - `RecordFunction`: Handles state machine transitions (`escalate`, `unacknowledge`, `fail`) with conditional DynamoDB writes.
