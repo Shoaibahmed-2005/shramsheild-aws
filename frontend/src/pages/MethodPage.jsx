@@ -242,6 +242,23 @@ export function MethodPage() {
           Furthermore, these screening limits assume a standardized 8-hour workday for young, healthy adults and have not been validated against individual medical histories, age, clothing insulation, or illness reports. They are not a medical prescription. Site supervisors and workers must always exercise on-site judgment, observe individual symptoms, and stop work immediately if anyone feels dizzy, nauseous, fatigued, or unwell.
         </p>
       </section>
+
+      <section className="card method-section" aria-labelledby="limitations-list-heading">
+        <h2 id="limitations-list-heading">Limitations</h2>
+        <ul className="caveats-list">
+          <li>Compares two methods on the same historical data; it is not validated against heat illness cases.</li>
+          <li>Uses historical reanalysis data, not archived forecasts, so real-time forecast error is not included.</li>
+          <li>WBGT is estimated from modelled weather at a city point, not measured at the worksite.</li>
+          <li>Screening limits are for an 8-hour workday and are not a prescription of work and rest periods.</li>
+          <li>Live plans rest on a forecast, which carries its own error; a plan can be wrong about the day ahead even when the method is right.</li>
+          <li>Reanalysis weather is a grid value of roughly 10 to 25 km, so it can differ from a nearby station, and a city point is not the site.</li>
+          <li>Microclimate is not modelled at all. Bitumen, metal roofs, trenches, reflective walls and heavy or impermeable clothing can all make real exposure considerably worse than these numbers.</li>
+          <li>People differ. Age, fitness, medication, illness, pregnancy, hydration and acclimatization state all change individual risk, and the screening limits are not a medical standard that fits everyone.</li>
+          <li>The Hindi message text is machine-drafted and has not been reviewed by a native Hindi speaker.</li>
+          <li>In 6 of the 8736 hours examined, all with wind below the 0.62 m/s floor that the Liljegren method applies, WBGT exceeded air temperature by more than 3 C. This is expected for a sunlit globe in near-still air rather than an error, and those hours are reported explicitly by core/scripts/run_backtest.py instead of being hidden.</li>
+        </ul>
+        <p className="hindi-review-status">Hindi text review: pending native review</p>
+      </section>
     </div>
   );
 }

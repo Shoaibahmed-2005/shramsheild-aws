@@ -4,11 +4,8 @@
 
 import sitesFixture from './fixtures/sites.json';
 import planChennaiFixture from './fixtures/plan_chennai_moderate.json';
-import runWaitingFixture from './fixtures/run_waiting.json';
-import runEscalatedFixture from './fixtures/run_escalated.json';
-import runAcknowledgedFixture from './fixtures/run_acknowledged.json';
-import runUnacknowledgedFixture from './fixtures/run_unacknowledged.json';
 import backtestFixture from './fixtures/backtest.json';
+import { createMockRunStore } from './mockRunWorkflow.js';
 
 const API_BASE = (import.meta.env.VITE_API_BASE || '').replace(/\/+$/, '');
 const DEMO_KEY = import.meta.env.VITE_DEMO_KEY || '';
@@ -16,6 +13,7 @@ const LIVE_MODE = import.meta.env.VITE_USE_MOCK === 'false' && Boolean(API_BASE)
 const REQUEST_TIMEOUT_MS = 10_000;
 
 let mockSites = clone(sitesFixture.sites);
+const mockRuns = createMockRunStore();
 
 function clone(value) {
   return JSON.parse(JSON.stringify(value));
@@ -125,25 +123,33 @@ const mockApi = {
 
   async getLatestRun(id) {
     await delay();
-    if (id === 'chn-01') return clone(runWaitingFixture);
+    const run = mockRuns.getLatestRun(id);
+    if (run) return run;
     throw new ApiError('not_found', `No runs found for site ${id}`, 404);
   },
 
   async getRun(runId) {
     await delay();
-    const runs = [runWaitingFixture, runEscalatedFixture, runAcknowledgedFixture, runUnacknowledgedFixture];
-    return clone(runs.find((run) => run.run_id === runId) || runWaitingFixture);
+    const run = mockRuns.getRun(runId);
+    if (run) return run;
+    throw new ApiError('not_found', `Run ${runId} not found`, 404);
   },
 
-  async startRun(id) {
+  async startRun(id, options = {}) {
     await delay();
-    const now = new Date().toISOString().replace(/[-:T]/g, '').slice(0, 15);
-    return { run_id: `${id}_${now}`, status: 'STARTED' };
+    const site = mockSites.find((item) => item.site_id === id);
+    if (!site) throw new ApiError('not_found', `Site ${id} not found`, 404);
+    return mockRuns.startRun(site, options);
   },
 
-  async ack() {
+  async ack(runId, by = 'Site Supervisor') {
     await delay();
-    return { ok: true, status: 'ACKNOWLEDGED' };
+    const run = mockRuns.getRun(runId);
+    if (!run) throw new ApiError('not_found', `Run ${runId} not found`, 404);
+    if (['ACKNOWLEDGED', 'UNACKNOWLEDGED', 'FAILED'].includes(run.status)) {
+      throw new ApiError('conflict', `Run is already closed with status ${run.status}.`, 409);
+    }
+    return mockRuns.acknowledge(runId, by);
   },
 
   async createSite(site) {
@@ -194,7 +200,7 @@ const liveApi = {
     return (await request(`/sites/${encodeURIComponent(id)}/run`, { method: 'POST', body: options })).data;
   },
 
-  async ack(runId, by = 'Site Supervisor') {
+  async ack(runId, by) {
     return (await request('/ack', { method: 'POST', body: { run_id: runId, by } })).data;
   },
 

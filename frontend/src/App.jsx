@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 
 import { SitesPage } from './pages/SitesPage.jsx';
 import { SitePlanPage } from './pages/SitePlanPage.jsx';
+import { RunPage } from './pages/RunPage.jsx';
 import { BacktestPage } from './pages/BacktestPage.jsx';
 import { MethodPage } from './pages/MethodPage.jsx';
 
@@ -23,6 +24,14 @@ function resolveRoute(hash) {
                 page: 'site',
                 siteId: decodeURIComponent(segments[1]),
             };
+        } catch {
+            return { page: 'not-found' };
+        }
+    }
+
+    if (segments[0] === 'run' && segments[1]) {
+        try {
+            return { page: 'run', runId: decodeURIComponent(segments[1]) };
         } catch {
             return { page: 'not-found' };
         }
@@ -148,6 +157,10 @@ function App() {
                     language={language}
                 />
             );
+            break;
+
+        case 'run':
+            page = <RunPage runId={route.runId} />;
             break;
 
         case 'backtest':

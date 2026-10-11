@@ -2,6 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { getSite, getPlan } from '../api.js';
 import { LEVELS, getLevelConfig } from '../levels.js';
 import { formatHourEn, formatHourHi, formatHour } from '../utils.js';
+import { isFixtureData } from '../runWorkflow.js';
+import { RunNowPanel } from './RunNowPanel.jsx';
 
 function indiaDateOffset(offset) {
   const parts = new Intl.DateTimeFormat('en-CA', {
@@ -112,7 +114,7 @@ export function SitePlanPage({ siteId, language = 'en' }) {
 
   if (!plan) return null;
 
-  const isFixture = Boolean(plan._fixture);
+  const isFixture = isFixtureData(plan);
   const selectedHour = plan.hours?.find((h) => h.hour === selectedHourIndex) || plan.hours?.[12];
   const selectedLevelConfig = getLevelConfig(selectedHour?.level);
 
@@ -159,6 +161,8 @@ export function SitePlanPage({ siteId, language = 'en' }) {
           {generatedTimeIndia(plan.generated_at) && ` Generated ${generatedTimeIndia(plan.generated_at)} India time.`}
         </div>
       </div>
+
+      {site && <RunNowPanel site={site} />}
 
       <section className="date-selector" aria-label="Plan date">
         <span>Plan date</span>

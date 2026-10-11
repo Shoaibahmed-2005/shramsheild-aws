@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { getBacktest } from '../api.js';
 import { buildBacktestHeadline } from '../utils.js';
-import { LEVELS, getLevelConfig } from '../levels.js';
+import { getLevelConfig } from '../levels.js';
+import { isFixtureData } from '../runWorkflow.js';
 
 export function BacktestPage() {
   const [backtest, setBacktest] = useState(null);
@@ -51,9 +52,17 @@ export function BacktestPage() {
 
   if (!backtest) return null;
 
-  const isFixture = Boolean(backtest._fixture);
+  const isFixture = isFixtureData(backtest);
   const headline = buildBacktestHeadline(backtest);
   const maxDangerousSite = Math.max(...(backtest.sites || []).map((s) => s.dangerous_hours || 0), 1);
+  const exampleSite = backtest.sites?.[0];
+  const exampleHour = exampleSite?.example_hour;
+  const baselineThreshold = backtest.baseline_thresholds_c?.includes(40)
+    ? 40
+    : backtest.baseline_thresholds_c?.[0];
+  const exampleThresholdResult = exampleSite?.by_threshold?.find(
+    (item) => item.threshold_c === baselineThreshold,
+  );
 
   return (
     <div>
@@ -164,25 +173,27 @@ export function BacktestPage() {
           <p style={{ fontSize: '0.88rem', color: 'var(--text-muted)', marginBottom: '0.85rem' }}>
             A plain 40°C temperature alert misses dangerous humid hours completely:
           </p>
-          {backtest.sites?.[0]?.example_hour && (
+          {exampleHour && (
             <div style={{ background: 'var(--bg-card-alt)', padding: '1rem', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-card)' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.75rem' }}>
-                <strong style={{ fontSize: '0.95rem' }}>{backtest.sites[0].name}</strong>
-                <span className="risk-level-badge" style={{ backgroundColor: LEVELS.RED.bg, color: LEVELS.RED.text, fontSize: '0.72rem' }}>
-                  {backtest.sites[0].example_hour.level}
+                <strong style={{ fontSize: '0.95rem' }}>{exampleSite.name}</strong>
+                <span className="risk-level-badge" style={{ backgroundColor: getLevelConfig(exampleHour.level).bg, color: getLevelConfig(exampleHour.level).text, fontSize: '0.72rem' }}>
+                  {exampleHour.level}
                 </span>
               </div>
               <p style={{ fontSize: '0.86rem', color: 'var(--text-tertiary)', marginBottom: '0.5rem' }}>
-                Timestamp: {backtest.sites[0].example_hour.time.replace('T', ' at ')} IST
+                Timestamp: {exampleHour.time.replace('T', ' at ')} IST
               </p>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.88rem' }}>
-                <div>Air Temp: <strong>{backtest.sites[0].example_hour.air_temp_c}°C</strong> (Below 40°C alert!)</div>
-                <div>Relative Humidity: <strong>{backtest.sites[0].example_hour.rh_pct}%</strong></div>
-                <div>Calculated WBGT: <strong>{backtest.sites[0].example_hour.wbgt_c}°C</strong></div>
-                <div>Screening Limit: <strong>RED (15 min work/hr)</strong></div>
+                <div>Air Temp: <strong>{exampleHour.air_temp_c}°C</strong> ({baselineThreshold == null ? 'no baseline threshold' : exampleHour.air_temp_c < baselineThreshold ? `below ${baselineThreshold}°C alert` : `at or above ${baselineThreshold}°C alert`})</div>
+                <div>Relative Humidity: <strong>{exampleHour.rh_pct}%</strong></div>
+                <div>Calculated WBGT: <strong>{exampleHour.wbgt_c}°C</strong></div>
+                <div>Screening level: <strong>{exampleHour.level}</strong></div>
               </div>
               <p style={{ marginTop: '0.75rem', fontSize: '0.82rem', color: 'var(--text-muted)' }}>
-                Result: With 84% humidity, workers face severe heat strain at 28.8°C air temperature, but simple thermometers trigger zero alerts.
+                {exampleThresholdResult
+                  ? `At ${baselineThreshold}°C, the air-temperature alert caught ${exampleThresholdResult.caught} of ${exampleSite.dangerous_hours} dangerous hours at this site and missed ${exampleThresholdResult.missed} (${exampleThresholdResult.missed_pct}%).`
+                  : 'No matching air-temperature baseline result is available for this site.'}
               </p>
             </div>
           )}
