@@ -208,8 +208,12 @@ const liveApi = {
     return (await request('/sites', { method: 'POST', body: site })).data;
   },
 
+  // The backtest is a precomputed historical analysis of April-June 2024, produced
+  // by core/scripts/run_backtest.py and shipped with the app. It is real computed
+  // data, not a mock: backtest.json carries "_fixture": false. There is no live
+  // endpoint for it because nothing about it changes at runtime.
   async getBacktest() {
-    throw new ApiError('not_available', 'Backtest data is not available from the live API yet.');
+    return clone(backtestFixture);
   },
 
   async getHealth() {
