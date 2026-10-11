@@ -64,70 +64,71 @@ def set_chat(
     table: Any,
     site_id: str,
     role: str,
-    chat_id_val: str,
+    chat_id_val: Any,
 ) -> int:
-    """Update only supervisor or backup telegram_chat_id for a given site."""
+    """Update only supervisor or backup telegram_chat_id for an existing site.
+
+    Stores telegram_chat_id as an integer. Fails clearly if site does not exist.
+    Never overwrites other fields.
+    """
     if role not in ("supervisor", "backup"):
         print(f"[set-chat] ERROR: role must be 'supervisor' or 'backup', got '{role}'", file=sys.stderr)
         return 1
 
-    site = db.get_site(table, site_id)
-    if not site:
-        print(f"[set-chat] ERROR: site '{site_id}' not found in table.", file=sys.stderr)
+    try:
+        chat_id_int = int(chat_id_val)
+    except (ValueError, TypeError):
+        print(f"[set-chat] ERROR: CHAT_ID must be an integer, got '{chat_id_val}'", file=sys.stderr)
         return 1
 
-    # Convert chat_id to integer if numeric, else string
-    val: Any
-    if chat_id_val.isdigit() or (chat_id_val.startswith("-") and chat_id_val[1:].isdigit()):
-        val = int(chat_id_val)
-    elif chat_id_val.lower() == "null" or chat_id_val == "":
-        val = None
-    else:
-        val = chat_id_val
+    site = db.get_site(table, site_id)
+    if not site:
+        print(f"[set-chat] ERROR: site '{site_id}' does not exist in table.", file=sys.stderr)
+        return 1
 
+    # Preserve all other fields and only update role.telegram_chat_id
     if role not in site or not isinstance(site[role], dict):
-        site[role] = {"name": role.capitalize(), "telegram_chat_id": val}
+        site[role] = {"name": role.capitalize(), "telegram_chat_id": chat_id_int}
     else:
-        site[role]["telegram_chat_id"] = val
+        site[role]["telegram_chat_id"] = chat_id_int
 
     db.put_site(table, site)
-    print(f"[set-chat] Updated site '{site_id}' {role}.telegram_chat_id = {val}")
+    print(f"[set-chat] Updated site '{site_id}' {role}.telegram_chat_id = {chat_id_int}")
     return 0
 
 
-def main() -> int:
+def main(argv=None) -> int:
     repo_root = backend_dir.parent
     fixtures_path = repo_root / "shared" / "fixtures" / "sites.json"
 
-    # Check for set-chat subcommand
-    if len(sys.argv) > 1 and sys.argv[1] == "set-chat":
-        parser = argparse.ArgumentParser(description="Set chat ID for site supervisor/backup")
-        parser.add_argument("command", choices=["set-chat"])
-        parser.add_argument("site_id", help="Target site_id (e.g. chn-01)")
-        parser.add_argument("role", choices=["supervisor", "backup"], help="Role to update")
-        parser.add_argument("chat_id", help="Telegram chat ID")
-        parser.add_argument("--table", default=None, help="DynamoDB table name")
-        parser.add_argument("--stack", default="shramshield", help="SAM stack name")
-        parser.add_argument("--region", default="ap-south-1", help="AWS region")
-        args = parser.parse_args()
-
-        table_name = args.table or resolve_table_name(args.stack, args.region)
-        dynamodb = boto3.resource("dynamodb", region_name=args.region)
-        table = dynamodb.Table(table_name)
-        return set_chat(table, args.site_id, args.role, args.chat_id)
-
-    parser = argparse.ArgumentParser(description="Seed DynamoDB table with initial demo sites")
+    parser = argparse.ArgumentParser(description="Seed demo sites into DynamoDB or update contact chat IDs")
+    parser.add_argument("--stack", default="shramshield", help="SAM stack name (default: shramshield)")
     parser.add_argument("--table", default=None, help="DynamoDB table name")
-    parser.add_argument("--stack", default="shramshield", help="SAM stack name")
-    parser.add_argument("--region", default="ap-south-1", help="AWS region")
+    parser.add_argument("--region", default="ap-south-1", help="AWS region (default: ap-south-1)")
     parser.add_argument("--overwrite", action="store_true", help="Overwrite existing sites")
-    args = parser.parse_args()
+
+    subparsers = parser.add_subparsers(dest="command")
+
+    # set-chat subcommand
+    chat_parser = subparsers.add_parser("set-chat", help="Set supervisor or backup telegram_chat_id")
+    chat_parser.add_argument("site_id", help="Target site_id (e.g. chn-01)")
+    chat_parser.add_argument("role", choices=["supervisor", "backup"], help="Role to update (supervisor or backup)")
+    chat_parser.add_argument("chat_id", help="Telegram chat ID (integer)")
+    chat_parser.add_argument("--stack", default=argparse.SUPPRESS, help="SAM stack name")
+    chat_parser.add_argument("--table", default=argparse.SUPPRESS, help="DynamoDB table name")
+    chat_parser.add_argument("--region", default=argparse.SUPPRESS, help="AWS region")
+
+    args = parser.parse_args(argv)
 
     table_name = args.table or resolve_table_name(args.stack, args.region)
-    print(f"[seed_sites] Target table: {table_name}")
     dynamodb = boto3.resource("dynamodb", region_name=args.region)
     table = dynamodb.Table(table_name)
-    return seed_sites(table, fixtures_path, overwrite=args.overwrite)
+
+    if args.command == "set-chat":
+        return set_chat(table, args.site_id, args.role, args.chat_id)
+    else:
+        print(f"[seed_sites] Target table: {table_name}")
+        return seed_sites(table, fixtures_path, overwrite=args.overwrite)
 
 
 if __name__ == "__main__":

@@ -863,3 +863,78 @@ def test_get_run_and_latest_run(mock_dynamodb):
     resp = api.handler(make_event("GET", "/runs/nonexistent-run"))
     assert resp["statusCode"] == 404
 
+
+def test_seed_sites_set_chat(mock_dynamodb, monkeypatch):
+    """Test set-chat updates chat id as integer, preserves other fields, and handles errors."""
+    import importlib.util
+    import boto3
+
+    seed_script_path = backend_dir / "scripts" / "seed_sites.py"
+    spec = importlib.util.spec_from_file_location("seed_sites", seed_script_path)
+    seed_sites = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(seed_sites)
+
+    # Setup initial site
+    site = sample_site(
+        site_id="chn-01",
+        name="Chennai Demo",
+        lat=13.08,
+        lon=80.21,
+        supervisor={"name": "Alice", "telegram_chat_id": None},
+        backup={"name": "Bob", "telegram_chat_id": None},
+    )
+    db.put_site(mock_dynamodb, site)
+
+    # 1. Update supervisor chat ID
+    res = seed_sites.set_chat(mock_dynamodb, "chn-01", "supervisor", "987654321")
+    assert res == 0
+
+    updated = db.get_site(mock_dynamodb, "chn-01")
+    assert updated["supervisor"]["telegram_chat_id"] == 987654321
+    assert isinstance(updated["supervisor"]["telegram_chat_id"], int)
+    # Ensure other fields are never overwritten
+    assert updated["supervisor"]["name"] == "Alice"
+    assert updated["name"] == "Chennai Demo"
+    assert updated["lat"] == 13.08
+    assert updated["backup"]["telegram_chat_id"] is None
+
+    # 2. Update backup chat ID
+    res = seed_sites.set_chat(mock_dynamodb, "chn-01", "backup", 123456789)
+    assert res == 0
+    updated = db.get_site(mock_dynamodb, "chn-01")
+    assert updated["backup"]["telegram_chat_id"] == 123456789
+    assert isinstance(updated["backup"]["telegram_chat_id"], int)
+    assert updated["backup"]["name"] == "Bob"
+    assert updated["supervisor"]["telegram_chat_id"] == 987654321
+
+    # 3. Fail clearly if site does not exist
+    res = seed_sites.set_chat(mock_dynamodb, "nonexistent-site", "supervisor", "123")
+    assert res == 1
+
+    # 4. Fail clearly if chat_id is not integer
+    res = seed_sites.set_chat(mock_dynamodb, "chn-01", "supervisor", "not-a-number")
+    assert res == 1
+
+    # 5. Fail clearly if role is invalid
+    res = seed_sites.set_chat(mock_dynamodb, "chn-01", "invalid_role", "123")
+    assert res == 1
+
+    # 6. Test CLI argument parsing via main() with mock table
+    monkeypatch.setattr(boto3, "resource", lambda s, **kwargs: type("M", (), {"Table": lambda self, name: mock_dynamodb})())
+    monkeypatch.setattr(seed_sites, "resolve_table_name", lambda s, r: "test-table")
+
+    # Flag before command: seed_sites.py --stack shramshield set-chat chn-01 supervisor 55555
+    res = seed_sites.main(["--stack", "shramshield", "set-chat", "chn-01", "supervisor", "55555"])
+    assert res == 0
+    updated = db.get_site(mock_dynamodb, "chn-01")
+    assert updated["supervisor"]["telegram_chat_id"] == 55555
+    assert isinstance(updated["supervisor"]["telegram_chat_id"], int)
+
+    # Flag after command: seed_sites.py set-chat chn-01 backup 66666 --stack shramshield
+    res = seed_sites.main(["set-chat", "chn-01", "backup", "66666", "--stack", "shramshield"])
+    assert res == 0
+    updated = db.get_site(mock_dynamodb, "chn-01")
+    assert updated["backup"]["telegram_chat_id"] == 66666
+    assert isinstance(updated["backup"]["telegram_chat_id"], int)
+
+
